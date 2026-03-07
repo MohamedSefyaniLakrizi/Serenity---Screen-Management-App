@@ -24,6 +24,7 @@ export interface OnboardingData {
   
   // Analytics & Insights
   currentDailyUsageHours: number | null;
+  currentDailyUsageRange: 'under-3' | '3-5' | '5-7' | '7-9' | '9+' | null;
   problemApps: string[];
   selectedApps?: string[];
   selectedCategories?: string[];

@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui";
 import { colors, spacing, typography } from "@/constants";
-import { AppGroup, AppGroupService } from "@/services/appGroups";
+import { AppGroup, AppGroupSchedule, AppGroupService } from "@/services/appGroups";
 import { useRouter } from "expo-router";
-import { Clock, Hash, Plus, Trash2 } from "lucide-react-native";
+import { CalendarDays, Clock, Edit2, Hash, Plus, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -56,7 +56,6 @@ export default function AppsScreen() {
             try {
               await AppGroupService.deleteAppGroup(groupId);
               await loadAppGroups();
-              Alert.alert("Success", "App group deleted");
             } catch (error) {
               console.error("Error deleting group:", error);
               Alert.alert("Error", "Failed to delete app group");
@@ -76,6 +75,26 @@ export default function AppsScreen() {
     return `${hours}h ${mins}m session`;
   };
 
+  const DAY_LABELS: Record<string, string> = {
+    mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'Sa', sun: 'Su',
+  };
+  const ALL_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+  const formatSchedule = (schedule?: AppGroupSchedule): string => {
+    if (!schedule || schedule.alwaysOn) return 'Always On';
+    const [sh, sm] = schedule.startTime.split(':').map(Number);
+    const [eh, em] = schedule.endTime.split(':').map(Number);
+    const fmt = (h: number, m: number) => {
+      const s = h < 12 ? 'AM' : 'PM';
+      return `${h % 12 === 0 ? 12 : h % 12}:${m.toString().padStart(2, '0')} ${s}`;
+    };
+    const timePart = `${fmt(sh, sm)} – ${fmt(eh, em)}`;
+    const isAllDays = ALL_DAYS.every((d) => schedule.days.includes(d));
+    const isWeekdays = ['mon','tue','wed','thu','fri'].every((d) => schedule.days.includes(d)) && !schedule.days.includes('sat') && !schedule.days.includes('sun');
+    const dayPart = isAllDays ? 'Every day' : isWeekdays ? 'Weekdays' : schedule.days.map((d) => DAY_LABELS[d]).join('');
+    return `${timePart} · ${dayPart}`;
+  };
+
   const renderAppGroup = (group: AppGroup) => {
     const unlocksRemaining = group.dailyUnlocks - group.currentUnlocks;
     const isOutOfUnlocks = unlocksRemaining <= 0;
@@ -86,15 +105,26 @@ export default function AppsScreen() {
           <View style={styles.groupTitleContainer}>
             <Text style={styles.groupName}>{group.name}</Text>
             <Text style={styles.appCount}>
-              {group.apps.length} {group.apps.length === 1 ? "app" : "apps"}
+              {(group.applicationCount ?? group.apps.length) > 0
+                ? `${group.applicationCount ?? group.apps.length} app${(group.applicationCount ?? group.apps.length) === 1 ? '' : 's'}`
+                : 'No apps selected'}
+              {group.categoryCount ? `  ·  ${group.categoryCount} categor${group.categoryCount === 1 ? 'y' : 'ies'}` : ''}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => handleDeleteGroup(group.id, group.name)}
-            style={styles.deleteButton}
-          >
-            <Trash2 size={20} color={colors.error} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.push(`/edit-group/${group.id}` as any)}
+              style={styles.iconButton}
+            >
+              <Edit2 size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleDeleteGroup(group.id, group.name)}
+              style={styles.iconButton}
+            >
+              <Trash2 size={18} color={colors.error} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* App List */}
@@ -113,22 +143,32 @@ export default function AppsScreen() {
         <View style={styles.groupSettings}>
           <View style={styles.settingItem}>
             <Clock size={16} color={colors.textSecondary} />
-            <Text style={styles.settingLabel}>Session:</Text>
+            <Text style={styles.settingLabel}>Mode:</Text>
             <Text style={styles.settingValue}>
-              {group.isBlocked ? "Blocked" : formatTime(group.sessionLength)}
+              {group.isBlocked ? "Fully Blocked" : formatTime(group.sessionLength)}
             </Text>
           </View>
 
+          {!group.isBlocked && (
+            <View style={styles.settingItem}>
+              <Hash size={16} color={colors.textSecondary} />
+              <Text style={styles.settingLabel}>Daily Unlocks:</Text>
+              <Text
+                style={[
+                  styles.settingValue,
+                  isOutOfUnlocks && styles.settingValueWarning,
+                ]}
+              >
+                {unlocksRemaining}/{group.dailyUnlocks}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.settingItem}>
-            <Hash size={16} color={colors.textSecondary} />
-            <Text style={styles.settingLabel}>Daily Unlocks:</Text>
-            <Text
-              style={[
-                styles.settingValue,
-                isOutOfUnlocks && styles.settingValueWarning,
-              ]}
-            >
-              {unlocksRemaining}/{group.dailyUnlocks}
+            <CalendarDays size={16} color={colors.textSecondary} />
+            <Text style={styles.settingLabel}>When:</Text>
+            <Text style={[styles.settingValue, styles.scheduleValue]} numberOfLines={1}>
+              {formatSchedule(group.schedule)}
             </Text>
           </View>
         </View>
@@ -178,13 +218,7 @@ export default function AppsScreen() {
 
         {/* Create Group Button */}
         <TouchableOpacity
-          onPress={() => {
-            /* TODO: Navigate to create group screen */
-            Alert.alert(
-              "Coming Soon",
-              "Group creation screen will be implemented"
-            );
-          }}
+          onPress={() => router.push('/create-group' as any)}
           style={styles.createButton}
         >
           <Card style={styles.createButtonCard}>
@@ -297,6 +331,13 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: spacing.xs,
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  iconButton: {
+    padding: spacing.xs,
+  },
   appsList: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -343,6 +384,9 @@ const styles = StyleSheet.create({
   },
   settingValueWarning: {
     color: colors.error,
+  },
+  scheduleValue: {
+    flex: 1,
   },
   blockedBadge: {
     marginTop: spacing.sm,

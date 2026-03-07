@@ -1,4 +1,5 @@
 import { borderRadius, colors, spacing, typography } from '@/constants';
+import { FONTS } from '@/constants/typography';
 import { useThemedColors } from '@/hooks/useThemedStyles';
 import React from 'react';
 import {
@@ -40,46 +41,48 @@ export default function Button({
   const getBackgroundColor = () => {
     switch (variant) {
       case 'primary':
-        return colors.primary;
+        return themedColors.primary;
       case 'secondary':
         return themedColors.surface;
       case 'outline':
       case 'ghost':
         return 'transparent';
       default:
-        return colors.primary;
+        return themedColors.primary;
     }
   };
 
   const getTextColor = () => {
     switch (variant) {
       case 'primary':
-        return colors.surface;
+        return '#FFFFFF';
       case 'secondary':
         return themedColors.textPrimary;
       case 'outline':
       case 'ghost':
-        return colors.primary;
+        return themedColors.primary;
       default:
-        return colors.surface;
+        return '#FFFFFF';
     }
   };
 
+  const s = styles(themedColors);
+
   const buttonStyles = [
-    styles.base,
+    s.base,
     { backgroundColor: getBackgroundColor() },
-    variant === 'outline' && [styles.outline, { borderColor: colors.primary }],
-    styles[`${size}Size`],
-    fullWidth && styles.fullWidth,
-    disabled && styles.disabled,
+    variant === 'outline' && [s.outline, { borderColor: themedColors.primary }],
+    s[`${size}Size`],
+    fullWidth && s.fullWidth,
+    disabled && s.disabled,
     style,
   ];
 
   const textStyles = [
-    styles.text,
+    s.text,
     { color: getTextColor() },
-    styles[`${size}Text`],
-    disabled && styles.disabledText,
+    s[`${size}Text`],
+    disabled && s.disabledText,
     textStyle,
   ];
 
@@ -92,7 +95,7 @@ export default function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? colors.surface : colors.primary}
+          color={variant === 'primary' ? '#FFFFFF' : themedColors.primary}
         />
       ) : (
         <>
@@ -104,7 +107,7 @@ export default function Button({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create({
   base: {
     borderRadius: borderRadius.medium,
     flexDirection: 'row',
@@ -135,8 +138,7 @@ const styles = StyleSheet.create({
 
   // Text Styles
   text: {
-    fontFamily: typography.fontPrimary,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.loraBold,
   },
   smallText: {
     fontSize: typography.small,

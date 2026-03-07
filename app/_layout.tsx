@@ -1,19 +1,42 @@
-import { colors } from "@/constants";
+import { colors, fontAssets } from "@/constants";
 import { AppGroupService } from "@/services/appGroups";
+import { POSTHOG_CONFIG, PostHogProvider } from "@/services/posthog";
+import { configurePurchases } from "@/services/purchases";
+import { usePurchasesStore } from "@/store/purchasesStore";
 import { useThemeStore } from "@/store/themeStore";
 import { appEvents, EVENTS } from "@/utils/events";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFonts } from "expo-font";
+import { useURL } from "expo-linking";
 import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, AppState, AppStateStatus, StyleSheet, View } from "react-native";
 
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(fontAssets);
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const router = useRouter();
   const segments = useSegments();
   const loadTheme = useThemeStore(state => state.loadTheme);
+  const onSDKConfigured = usePurchasesStore(state => state.onSDKConfigured);
+  const deepLinkUrl = useURL();
+
+  // Handle deep links (e.g. serenity://mindful-pause?groupId=xxx from shield button)
+  useEffect(() => {
+    if (!deepLinkUrl) return;
+    try {
+      const url = new URL(deepLinkUrl);
+      if (url.hostname === 'mindful-pause') {
+        const groupId = url.searchParams.get('groupId') ?? '';
+        router.push(`/mindful-pause?groupId=${encodeURIComponent(groupId)}`);
+      }
+    } catch {}
+  }, [deepLinkUrl]);
 
   // Check onboarding status on mount
   const checkOnboardingStatus = useCallback(async () => {
@@ -90,6 +113,12 @@ export default function RootLayout() {
       await Promise.all([
         checkOnboardingStatus(),
         loadTheme(),
+        // Configure RevenueCat SDK. Any errors here are non-fatal.
+        configurePurchases().then(() => {
+          onSDKConfigured();
+        }).catch((err) => {
+          console.warn('[RevenueCat] Init error (non-fatal):', err);
+        }),
       ]);
       setIsInitialized(true);
     };
@@ -110,8 +139,8 @@ export default function RootLayout() {
       console.log('➡️ Navigating to onboarding...');
       router.replace('/onboarding/');
     } else if (isOnboardingComplete && inOnboarding) {
-      console.log('➡️ Navigating to home...');
-      router.replace('/(tabs)/');
+      console.log('➡️ Onboarding complete, navigating to paywall...');
+      router.replace('/paywall');
     }
   }, [isInitialized, isOnboardingComplete, segments, router]);
 
@@ -136,8 +165,15 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Show loading screen while initializing
-  if (!isInitialized || isOnboardingComplete === null) {
+  // Hide splash screen once fonts and app state are both ready
+  useEffect(() => {
+    if ((fontsLoaded || fontError) && isInitialized && isOnboardingComplete !== null) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError, isInitialized, isOnboardingComplete]);
+
+  // Show loading screen while fonts or app state are not yet ready
+  if ((!fontsLoaded && !fontError) || !isInitialized || isOnboardingComplete === null) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -146,15 +182,30 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <PostHogProvider
+      apiKey={POSTHOG_CONFIG.apiKey}
+      options={{
+        host: POSTHOG_CONFIG.host,
+        disabled: POSTHOG_CONFIG.disabled,
+      }}
+    >
       <StatusBar style="dark" backgroundColor={colors.background} />
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
         }}
-      />
-    </>
+      >
+        <Stack.Screen
+          name="mindful-pause"
+          options={{
+            presentation: 'fullScreenModal',
+            headerShown: false,
+            animation: 'fade',
+          }}
+        />
+      </Stack>
+    </PostHogProvider>
   );
 }
 

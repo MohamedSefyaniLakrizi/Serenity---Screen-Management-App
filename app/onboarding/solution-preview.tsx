@@ -1,9 +1,12 @@
 import { Button } from '@/components/ui';
 import { spacing, typography } from '@/constants';
+import { FONTS } from '@/constants/typography';
 import { useSequentialFadeIn } from '@/hooks/useOnboardingAnimation';
+import { useOnboardingNext } from '@/hooks/useOnboardingNext';
 import { useThemedColors } from '@/hooks/useThemedStyles';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { router } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -58,6 +61,7 @@ const allSolutions: SolutionContent[] = [
 export default function SolutionPreview() {
   const theme = useThemedColors();
   const { primaryProblem, name } = useOnboardingStore();
+  const { navigateNext, progressFraction } = useOnboardingNext('/onboarding/solution-preview');
   
   const [screenFade, headerAnimation, primaryCardAnimation, secondaryCard1Animation, secondaryCard2Animation, buttonAnimation] = useSequentialFadeIn(6, { duration: 300, stagger: 400 });
 
@@ -78,19 +82,13 @@ export default function SolutionPreview() {
       <SafeAreaView style={styles(theme).safeArea} edges={['top']}>
         <StatusBar barStyle={theme.statusBar} />
         
-        {/* Progress bar */}
-        <View style={styles(theme).progressBarContainer}>
-          <View style={styles(theme).progressBarWrapper}>
-            <TouchableOpacity 
-              style={styles(theme).backButton}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <Text style={styles(theme).backButtonText}>←</Text>
-            </TouchableOpacity>
-            <View style={styles(theme).progressBarBackground}>
-              <View style={[styles(theme).progressBarFill, { width: '12%' }]} />
-            </View>
+        {/* Header */}
+        <View style={styles(theme).header}>
+          <TouchableOpacity style={styles(theme).backButton} onPress={() => router.back()} activeOpacity={0.7}>
+            <ChevronLeft size={22} color={theme.textPrimary} strokeWidth={2} />
+          </TouchableOpacity>
+          <View style={styles(theme).progressTrack}>
+            <View style={[styles(theme).progressFill, { width: `${progressFraction * 100}%` }]} />
           </View>
         </View>
 
@@ -149,8 +147,9 @@ export default function SolutionPreview() {
 
         <Animated.View style={[styles(theme).actions, buttonAnimation]}>
           <Button
+            size="large"
             title="Begin My Transformation"
-            onPress={() => router.push('/onboarding/stats-intro')}
+            onPress={() => navigateNext()}
           />
         </Animated.View>
       </SafeAreaView>
@@ -166,33 +165,25 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
   safeArea: {
     flex: 1,
   },
-  progressBarContainer: {
-    width: '100%',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    paddingTop: spacing.xl,
-    backgroundColor: theme.background,
-  },
-  progressBarWrapper: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
   },
   backButton: {
     padding: spacing.xs,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: theme.textPrimary,
-  },
-  progressBarBackground: {
+  progressTrack: {
     flex: 1,
     height: 6,
     backgroundColor: theme.surface,
     borderRadius: 3,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
     backgroundColor: theme.primary,
     borderRadius: 3,
@@ -210,14 +201,15 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     paddingTop: spacing.md,
   },
   greeting: {
-    fontSize: typography.h2,
-    fontWeight: typography.bold,
+    fontFamily: FONTS.loraBold,
+    fontSize: typography.sizes.h2,
     color: theme.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
   subheading: {
-    fontSize: typography.body,
+    fontFamily: FONTS.interRegular,
+    fontSize: typography.sizes.body,
     color: theme.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
@@ -238,14 +230,14 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     borderWidth: 2,
   },
   headerCardText: {
-    fontSize: typography.h3,
-    fontWeight: typography.medium,
+    fontFamily: FONTS.interMedium,
+    fontSize: typography.sizes.h3,
     color: theme.textPrimary,
     lineHeight: 26,
     textAlign: 'center',
   },
   headerHighlight: {
-    fontWeight: "900",
+    fontFamily: FONTS.loraBold,
     color: theme.primary,
   },
   // Primary Card (iOS notification style)
@@ -278,8 +270,8 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     zIndex: 10,
   },
   forYouText: {
-    fontSize: typography.small,
-    fontWeight: typography.bold,
+    fontFamily: FONTS.interBold,
+    fontSize: typography.sizes.caption,
     color: '#FFFFFF',
   },
   cardHeader: {
@@ -303,12 +295,13 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     flex: 1,
   },
   appName: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.interSemiBold,
+    fontSize: typography.sizes.body,
     color: theme.textPrimary,
   },
   timestamp: {
-    fontSize: typography.small,
+    fontFamily: FONTS.interRegular,
+    fontSize: typography.sizes.caption,
     color: theme.textTertiary,
     marginTop: 2,
   },
@@ -325,8 +318,8 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     flex: 1,
   },
   primaryTitle: {
-    fontSize: typography.body,
-    fontWeight: typography.bold,
+    fontFamily: FONTS.interSemiBold,
+    fontSize: typography.sizes.body,
     color: theme.textPrimary,
     marginBottom: spacing.xs / 2,
   },
@@ -362,8 +355,8 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     fontSize: 18,
   },
   appNameSmall: {
-    fontSize: typography.small,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.interSemiBold,
+    fontSize: typography.sizes.caption,
     color: theme.textPrimary,
   },
   timestampSmall: {
@@ -383,8 +376,8 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     flex: 1,
   },
   secondaryTitle: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.interSemiBold,
+    fontSize: typography.sizes.body,
     color: theme.textPrimary,
     marginBottom: spacing.xs / 2,
   },

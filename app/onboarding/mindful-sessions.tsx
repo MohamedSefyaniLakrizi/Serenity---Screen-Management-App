@@ -1,7 +1,10 @@
 import { spacing, typography } from '@/constants';
+import { FONTS } from '@/constants/typography';
 import { useSequentialFadeIn } from '@/hooks/useOnboardingAnimation';
+import { useOnboardingNext } from '@/hooks/useOnboardingNext';
 import { useThemedColors } from '@/hooks/useThemedStyles';
 import { router } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -9,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Intro3() {
   const theme = useThemedColors();
+  const { navigateNext, progressFraction } = useOnboardingNext('/onboarding/mindful-sessions');
   const [screenFade, titleAnimation, iconAnimation, subtitleAnimation, buttonAnimation] = useSequentialFadeIn(5, { duration: 300, stagger: 400 });
 
   return (
@@ -16,19 +20,13 @@ export default function Intro3() {
       <SafeAreaView style={styles(theme).safeArea} edges={['top']}>
       <StatusBar barStyle={theme.statusBar} />
       
-      {/* Progress bar */}
-      <View style={styles(theme).progressBarContainer}>
-        <View style={styles(theme).progressBarWrapper}>
-          <TouchableOpacity 
-            style={styles(theme).backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <Text style={styles(theme).backButtonText}>←</Text>
-          </TouchableOpacity>
-          <View style={styles(theme).progressBarBackground}>
-            <View style={[styles(theme).progressBarFill, { width: '30%' }]} />
-          </View>
+      {/* Header */}
+      <View style={styles(theme).header}>
+        <TouchableOpacity style={styles(theme).backButton} onPress={() => router.back()} activeOpacity={0.7}>
+          <ChevronLeft size={22} color={theme.textPrimary} strokeWidth={2} />
+        </TouchableOpacity>
+        <View style={styles(theme).progressTrack}>
+          <View style={[styles(theme).progressFill, { width: `${progressFraction * 100}%` }]} />
         </View>
       </View>
 
@@ -54,7 +52,7 @@ export default function Intro3() {
         <Animated.View style={buttonAnimation}>
         <TouchableOpacity 
           style={styles(theme).button}
-          onPress={() => router.push('/onboarding/screentime-permission')}
+          onPress={() => navigateNext()}
           activeOpacity={0.8}
         >
           <Text style={styles(theme).buttonText}>Next</Text>
@@ -74,33 +72,25 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
   safeArea: {
     flex: 1,
   },
-  progressBarContainer: {
-    width: '100%',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    paddingTop: spacing.xl,
-    backgroundColor: theme.background,
-  },
-  progressBarWrapper: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
   },
   backButton: {
     padding: spacing.xs,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: theme.textPrimary,
-  },
-  progressBarBackground: {
+  progressTrack: {
     flex: 1,
     height: 6,
     backgroundColor: theme.surface,
     borderRadius: 3,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
     backgroundColor: theme.primary,
     borderRadius: 3,
@@ -118,11 +108,12 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     paddingHorizontal: spacing.xl,
   },
   title: {
-    fontSize: typography.h1,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.loraBold,
+    fontSize: typography.sizes.h1,
     color: theme.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.xxl,
+    lineHeight: typography.sizes.h1 * 1.25,
   },
   iconContainer: {
     marginBottom: spacing.xxl,
@@ -131,9 +122,11 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     fontSize: 80,
   },
   subtitle: {
-    fontSize: typography.h3,
+    fontFamily: FONTS.interRegular,
+    fontSize: typography.sizes.bodyLarge,
     color: theme.textSecondary,
     textAlign: 'center',
+    lineHeight: typography.sizes.bodyLarge * 1.55,
   },
   actions: {
     paddingHorizontal: spacing.lg,
@@ -146,8 +139,8 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     alignItems: 'center',
   },
   buttonText: {
-    fontSize: 18,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.loraBold,
+    fontSize: typography.sizes.h3,
     color: '#FFFFFF',
   },
 });

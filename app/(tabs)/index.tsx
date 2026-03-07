@@ -1,10 +1,18 @@
 import { Card } from "@/components/ui";
 import { colors, spacing, typography } from "@/constants";
+import { FONTS } from "@/constants/typography";
 import { useThemedColors } from "@/hooks/useThemedStyles";
 import { AppGroup, AppGroupService } from "@/services/appGroups";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Clock, Flame, Hash, Lock, Plus, Smartphone, Trash2 } from "lucide-react-native";
+import {
+  ChevronRight,
+  Folder,
+  Plus,
+  Smartphone,
+  Trash2,
+} from "lucide-react-native";
 import { useCallback, useState } from "react";
+import type { ViewStyle } from "react-native";
 import {
   Alert,
   RefreshControl,
@@ -26,7 +34,7 @@ export default function AppsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadAppGroups();
-    }, [])
+    }, []),
   );
 
   const loadAppGroups = async () => {
@@ -61,14 +69,13 @@ export default function AppsScreen() {
             try {
               await AppGroupService.deleteAppGroup(groupId);
               await loadAppGroups();
-              Alert.alert("Success", "App group deleted");
             } catch (error) {
               console.error("Error deleting group:", error);
               Alert.alert("Error", "Failed to delete app group");
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -82,79 +89,99 @@ export default function AppsScreen() {
   };
 
   const renderAppGroup = (group: AppGroup) => {
-    const unlocksRemaining = group.dailyUnlocks - group.currentUnlocks;
-    const isOutOfUnlocks = unlocksRemaining <= 0;
-    // Calculate streak (placeholder - this would come from your data in production)
-    const streak = Math.floor(Math.random() * 15) + 1; // Mock streak for now
+    const appCount = group.applicationCount ?? group.apps.length;
+    const categoryCount = group.categoryCount ?? 0;
+
+    const selectionParts: string[] = [];
+    if (appCount > 0)
+      selectionParts.push(`${appCount} app${appCount === 1 ? "" : "s"}`);
+    if (categoryCount > 0)
+      selectionParts.push(
+        `${categoryCount} categor${categoryCount === 1 ? "y" : "ies"}`,
+      );
+    const selectionSummary =
+      selectionParts.length > 0 ? selectionParts.join("  ·  ") : "No selection";
+
+    const blockLabel = group.isBlocked
+      ? "Blocked"
+      : `${group.dailyUnlocks} unlock${group.dailyUnlocks === 1 ? "" : "s"}/day`;
 
     return (
-      <Card key={group.id} style={styles.groupCard}>
-        <View style={styles.compactHeader}>
-          <View style={styles.groupMainInfo}>
-            <Text style={[styles.groupName, { color: themedColors.textPrimary }]} numberOfLines={1}>
-              {group.name}
-            </Text>
-            <View style={styles.groupMeta}>
-              <Smartphone size={12} color={themedColors.textSecondary} />
-              <Text style={[styles.metaText, { color: themedColors.textSecondary }]}>
-                {group.apps.length} {group.apps.length === 1 ? "app" : "apps"}
-              </Text>
-              {group.isBlocked && (
-                <>
-                  <View style={styles.metaDivider} />
-                  <Lock size={12} color={themedColors.textSecondary} />
-                  <Text style={[styles.metaText, { color: themedColors.textSecondary }]}>Blocked</Text>
-                </>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.headerActions}>
-            <View style={styles.streakBadge}>
-              <Flame size={14} color="#FF6B35" />
-              <Text style={styles.streakText}>{streak}</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => handleDeleteGroup(group.id, group.name)}
-              style={styles.deleteButton}
-            >
-              <Trash2 size={18} color={themedColors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Compact Stats Row */}
-        <View style={styles.statsRow}>
-          {!group.isBlocked && (
-            <View style={styles.statItem}>
-              <Clock size={14} color={themedColors.textSecondary} />
-              <Text style={[styles.statValue, { color: themedColors.textPrimary }]}>
-                {formatTime(group.sessionLength)}
-              </Text>
-            </View>
-          )}
-          <View style={styles.statItem}>
-            <Hash size={14} color={themedColors.textSecondary} />
-            <Text
+      <TouchableOpacity
+        key={group.id}
+        onPress={() => router.push(`/edit-group/${group.id}` as any)}
+        activeOpacity={0.7}
+      >
+        <Card
+          style={
+            {
+              ...styles.groupCard,
+              backgroundColor: themedColors.surface,
+            } as ViewStyle
+          }
+        >
+          <View style={styles.cardRow}>
+            <View
               style={[
-                styles.statValue,
-                { color: themedColors.textPrimary },
-                isOutOfUnlocks && { color: colors.error },
+                styles.cardIconWrap,
+                { backgroundColor: themedColors.surfaceSecondary },
               ]}
             >
-              {unlocksRemaining}/{group.dailyUnlocks}
-            </Text>
+              <Folder size={18} color={themedColors.primary} />
+            </View>
+            <View style={styles.cardText}>
+              <Text
+                style={[styles.groupName, { color: themedColors.textPrimary }]}
+                numberOfLines={1}
+              >
+                {group.name}
+              </Text>
+              <Text
+                style={[
+                  styles.appCountText,
+                  { color: themedColors.textSecondary },
+                ]}
+              >
+                {selectionSummary}
+              </Text>
+            </View>
+            <View style={styles.cardRight}>
+              <Text
+                style={[
+                  styles.blockLabel,
+                  { color: themedColors.textTertiary },
+                ]}
+              >
+                {blockLabel}
+              </Text>
+              <View style={styles.cardActions}>
+                <ChevronRight size={16} color={themedColors.textTertiary} />
+                <TouchableOpacity
+                  onPress={() => handleDeleteGroup(group.id, group.name)}
+                  style={styles.deleteButton}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Trash2 size={15} color={themedColors.textTertiary} />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-      </Card>
+        </Card>
+      </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: themedColors.background }]}>
+      <View
+        style={[styles.container, { backgroundColor: themedColors.background }]}
+      >
         <View style={styles.content}>
-          <Text style={[styles.loadingText, { color: themedColors.textSecondary }]}>Loading app groups...</Text>
+          <Text
+            style={[styles.loadingText, { color: themedColors.textSecondary }]}
+          >
+            Loading app groups...
+          </Text>
         </View>
       </View>
     );
@@ -169,8 +196,12 @@ export default function AppsScreen() {
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: themedColors.textPrimary }]}>App Groups</Text>
-          <Text style={[styles.subtitle, { color: themedColors.textSecondary }]}>
+          <Text style={[styles.title, { color: themedColors.textPrimary }]}>
+            App Groups
+          </Text>
+          <Text
+            style={[styles.subtitle, { color: themedColors.textSecondary }]}
+          >
             Manage your blocked and limited apps
           </Text>
         </View>
@@ -178,7 +209,7 @@ export default function AppsScreen() {
         {/* Create Group Button */}
         <TouchableOpacity
           onPress={() => {
-            router.push('/create-group');
+            router.push("/create-group");
           }}
           style={styles.createButton}
         >
@@ -193,9 +224,25 @@ export default function AppsScreen() {
         {/* App Groups List */}
         {appGroups.length === 0 ? (
           <View style={styles.emptyState}>
-            <Smartphone size={64} color={themedColors.textSecondary} strokeWidth={1.5} />
-            <Text style={[styles.emptyStateTitle, { color: themedColors.textPrimary }]}>No app groups yet</Text>
-            <Text style={[styles.emptyStateText, { color: themedColors.textSecondary }]}>
+            <Smartphone
+              size={64}
+              color={themedColors.textSecondary}
+              strokeWidth={1.5}
+            />
+            <Text
+              style={[
+                styles.emptyStateTitle,
+                { color: themedColors.textPrimary },
+              ]}
+            >
+              No app groups yet
+            </Text>
+            <Text
+              style={[
+                styles.emptyStateText,
+                { color: themedColors.textSecondary },
+              ]}
+            >
               Create a group to start managing your app usage
             </Text>
           </View>
@@ -224,17 +271,21 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: typography.h1,
-    fontWeight: typography.bold,
-    color: colors.textDark,
+    fontFamily: FONTS.loraMedium,
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: typography.body,
-    color: colors.textGray,
+    fontFamily: FONTS.interRegular,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   loadingText: {
     fontSize: typography.body,
-    color: colors.textGray,
+    fontFamily: FONTS.interRegular,
+    color: colors.textSecondary,
     textAlign: "center",
   },
   infoCard: {
@@ -243,7 +294,8 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: typography.small,
-    color: colors.textGray,
+    fontFamily: FONTS.interRegular,
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   createButton: {
@@ -260,82 +312,55 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     fontSize: typography.body,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.interSemiBold,
     color: colors.primary,
   },
   groupsList: {
     gap: spacing.md,
   },
   groupCard: {
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 16,
   },
-  compactHeader: {
+  cardRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: spacing.xs,
+    alignItems: "center",
+    gap: spacing.sm,
   },
-  groupMainInfo: {
+  cardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardText: {
     flex: 1,
-    gap: spacing.xxs,
+    gap: 3,
   },
   groupName: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
-    color: colors.textDark,
+    fontSize: 15,
+    fontFamily: FONTS.interSemiBold,
   },
-  groupMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xxs,
-  },
-  metaText: {
-    fontSize: typography.small,
-    color: colors.textGray,
-  },
-  metaDivider: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.xxs,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  streakBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    backgroundColor: "#FF6B3520",
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  streakText: {
+  appCountText: {
     fontSize: 12,
-    fontWeight: typography.semibold,
-    color: "#FF6B35",
+    fontFamily: FONTS.interMedium,
+  },
+  cardRight: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  blockLabel: {
+    fontSize: 11,
+    fontFamily: FONTS.interMedium,
+  },
+  cardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   deleteButton: {
-    padding: spacing.xxs,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xxs,
-  },
-  statValue: {
-    fontSize: typography.small,
-    fontWeight: typography.semibold,
-    color: colors.textDark,
+    padding: 2,
   },
   emptyState: {
     alignItems: "center",
@@ -343,13 +368,15 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     fontSize: typography.h2,
-    fontWeight: typography.semibold,
-    color: colors.textDark,
+    fontFamily: FONTS.loraMedium,
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
+    letterSpacing: -0.3,
   },
   emptyStateText: {
     fontSize: typography.body,
-    color: colors.textGray,
+    fontFamily: FONTS.interRegular,
+    color: colors.textSecondary,
     textAlign: "center",
   },
 });

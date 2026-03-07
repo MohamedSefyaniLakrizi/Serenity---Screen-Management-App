@@ -1,13 +1,12 @@
+import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Button } from '@/components/ui';
 import { spacing } from '@/constants';
+import { FONTS } from '@/constants/typography';
 import { useThemedColors } from '@/hooks/useThemedStyles';
-import { AppGroupService, AppInfo } from '@/services/appGroups';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
     Alert,
-    ScrollView,
     StatusBar,
     StyleSheet,
     Text,
@@ -24,13 +23,14 @@ export default function UnlocksConfigScreen() {
   const params = useLocalSearchParams();
   const [selectedUnlocks, setSelectedUnlocks] = useState(3);
   const [customUnlocks, setCustomUnlocks] = useState('');
-  const [loading, setLoading] = useState(false);
 
   // Parse params
-  const selectedApps: AppInfo[] = params.apps ? JSON.parse(params.apps as string) : [];
+  const familyActivitySelection = (params.familyActivitySelection as string) ?? '';
+  const applicationCount = parseInt((params.applicationCount as string) ?? '0', 10);
+  const categoryCount = parseInt((params.categoryCount as string) ?? '0', 10);
   const groupName = params.groupName as string;
 
-  const handleCreate = async () => {
+  const handleContinue = () => {
     const unlocks = customUnlocks ? parseInt(customUnlocks, 10) : selectedUnlocks;
 
     if (isNaN(unlocks) || unlocks < 0 || unlocks > 100) {
@@ -38,31 +38,16 @@ export default function UnlocksConfigScreen() {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      await AppGroupService.createAppGroup(
+    router.push({
+      pathname: '/create-group/custom-timeframe',
+      params: {
+        familyActivitySelection,
+        applicationCount: applicationCount.toString(),
+        categoryCount: categoryCount.toString(),
         groupName,
-        selectedApps,
-        30, // sessionLength - not used in MVP
-        unlocks,
-        true // isBlocked - always true for MVP
-      );
-
-      Alert.alert('Success!', 'App group created successfully', [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.replace('/(tabs)/');
-          },
-        },
-      ]);
-    } catch (error) {
-      console.error('Error creating group:', error);
-      Alert.alert('Error', 'Failed to create app group. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+        unlockCount: unlocks.toString(),
+      },
+    });
   };
 
   return (
@@ -70,36 +55,14 @@ export default function UnlocksConfigScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar barStyle={theme.statusBar} />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <ChevronLeft size={24} color={theme.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: '100%', backgroundColor: theme.primary },
-                ]}
-              />
-            </View>
-            <Text style={[styles.stepText, { color: theme.textSecondary }]}>
-              Step 3 of 3
-            </Text>
-          </View>
-        </View>
+        <OnboardingHeader
+          progressFraction={3 / 4}
+          stepLabel="Step 3 of 4"
+          onBack={() => router.back()}
+        />
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.content}>
+        <View style={styles.scrollView}>
+          <View style={[styles.content, { paddingHorizontal: spacing.lg, paddingTop: spacing.sm }]}>
             {/* Title Section */}
             <View style={styles.titleSection}>
               <Text style={[styles.title, { color: theme.textPrimary }]}>
@@ -196,44 +159,8 @@ export default function UnlocksConfigScreen() {
                 maxLength={3}
               />
             </View>
-
-            {/* Summary */}
-            <View
-              style={[
-                styles.summary,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}
-            >
-              <Text style={[styles.summaryTitle, { color: theme.textPrimary }]}>
-                Summary
-              </Text>
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                  Group Name
-                </Text>
-                <Text style={[styles.summaryValue, { color: theme.textPrimary }]}>
-                  {groupName}
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                  Apps Selected
-                </Text>
-                <Text style={[styles.summaryValue, { color: theme.textPrimary }]}>
-                  {selectedApps.length}
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                  Daily Unlocks
-                </Text>
-                <Text style={[styles.summaryValue, { color: theme.primary }]}>
-                  {customUnlocks || selectedUnlocks}
-                </Text>
-              </View>
-            </View>
           </View>
-        </ScrollView>
+        </View>
 
         {/* Bottom Actions */}
         <View
@@ -243,9 +170,8 @@ export default function UnlocksConfigScreen() {
           ]}
         >
           <Button
-            title="Create Group"
-            onPress={handleCreate}
-            disabled={loading}
+            title="Continue"
+            onPress={handleContinue}
           />
         </View>
       </SafeAreaView>
@@ -260,43 +186,8 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressContainer: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  progressBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  stepText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
   scrollView: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
   },
   content: {
     gap: spacing.lg,
@@ -307,11 +198,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontFamily: FONTS.loraMedium,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
+    fontFamily: FONTS.interRegular,
     lineHeight: 20,
   },
   section: {
@@ -319,7 +211,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.interSemiBold,
   },
   presetsGrid: {
     flexDirection: 'row',
@@ -339,12 +231,12 @@ const styles = StyleSheet.create({
   },
   presetNumber: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: FONTS.interBold,
     marginBottom: spacing.xs / 2,
   },
   presetLabel: {
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: FONTS.interMedium,
   },
   customInput: {
     borderRadius: 12,
@@ -352,7 +244,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     fontSize: 18,
     textAlign: 'center',
-    fontWeight: '600',
+    fontFamily: FONTS.interSemiBold,
   },
   summary: {
     borderRadius: 16,

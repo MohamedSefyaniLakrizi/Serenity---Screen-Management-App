@@ -2,9 +2,21 @@
 
 ## Required Fonts
 
-The Serenity app uses two custom font families:
-- **Poppins** (for headings, buttons, and UI elements)
-- **Inter** (for body text and general content)
+The Serenity app uses two font families loaded via `@expo-google-fonts`:
+- **Lora** (for Display / Heading 1 — big headers, titles, hero text)
+- **Inter** (for all other UI — body, labels, inputs, buttons, captions)
+
+Variants loaded: `Regular 400`, `Medium 500`, `SemiBold 600`, `Bold 700` for both families.
+
+## Installation (already done)
+
+```bash
+npx expo install @expo-google-fonts/lora @expo-google-fonts/inter
+```
+
+Font assets are declared in `src/constants/typography.ts` (`fontAssets`) and loaded
+via `useFonts(fontAssets)` in `app/_layout.tsx`. The splash screen stays visible until
+fonts are ready.
 
 ## Installation Steps
 

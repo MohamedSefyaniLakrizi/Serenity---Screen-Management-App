@@ -1,0 +1,50 @@
+diff --git a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
+index c1569ef..47378a7 100644
+--- a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
++++ b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
+@@ -28,6 +28,8 @@ export type DeviceActivitySelectionViewProps = PropsWithChildren<{
+     familyActivitySelection?: string | null;
+     headerText?: string | null;
+     footerText?: string | null;
++    /** Force light or dark appearance for the native picker to match your app theme */
++    appearance?: 'light' | 'dark' | 'unspecified';
+ }>;
+ export type DeviceActivitySelectionViewPersistedProps = PropsWithChildren<{
+     style?: StyleProp<ViewStyle>;
+diff --git a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
+index abce029..47fb4e2 100644
+--- a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
++++ b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
+@@ -829,6 +829,19 @@ public class ReactNativeDeviceActivityModule: Module {
+       Prop("headerText") { (view: ReactNativeDeviceActivityView, prop: String?) in
+         view.model.headerText = prop
+       }
++
++      Prop("appearance") { (view: ReactNativeDeviceActivityView, prop: String?) in
++        if #available(iOS 13.0, *) {
++          switch prop {
++          case "dark":
++            view.contentView.overrideUserInterfaceStyle = .dark
++          case "light":
++            view.contentView.overrideUserInterfaceStyle = .light
++          default:
++            view.contentView.overrideUserInterfaceStyle = .unspecified
++          }
++        }
++      }
+     }
+   }
+ }
+diff --git a/node_modules/react-native-device-activity/src/ReactNativeDeviceActivity.types.ts b/node_modules/react-native-device-activity/src/ReactNativeDeviceActivity.types.ts
+index 1fae790..d8059f9 100644
+--- a/node_modules/react-native-device-activity/src/ReactNativeDeviceActivity.types.ts
++++ b/node_modules/react-native-device-activity/src/ReactNativeDeviceActivity.types.ts
+@@ -37,6 +37,8 @@ export type ActivitySelectionWithMetadata = {
+ export type DeviceActivitySelectionEvent = ActivitySelectionWithMetadata;
+ 
+ export type DeviceActivitySelectionViewProps = PropsWithChildren<{
++  /** Force light or dark appearance for the native picker to match your app theme */
++  appearance?: 'light' | 'dark' | 'unspecified';
+   style?: StyleProp<ViewStyle>;
+   onSelectionChange?: (
+     selection: NativeSyntheticEvent<DeviceActivitySelectionEvent>,

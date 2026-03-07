@@ -13,50 +13,50 @@ You are an expert React Native & Expo developer helping me build "Serenity," a s
 - **APIs**: Expo Screen Time API (managed workflow compatible)
 - **Storage**: AsyncStorage or Expo SecureStore for user data
 - **Animation**: React Native Reanimated 2+ for smooth animations
-- **Icons**: expo-vector-icons or lucide-react-native
+- **Icons**: `lucide-react-native` **exclusively** — never use emojis as icons or decoration
 
 ## Design System
 Follow this exact design system:
 
 ### Colors
 ```typescript
+// See src/constants/colors.ts for the full palette.
+// Key brand tokens:
 const colors = {
-  primary: '#FF7A3D',        // Primary Orange
-  secondary: '#FFB84D',      // Warm Yellow
-  accent: '#FF5722',         // Accent Red
-  background: '#FFF8F0',     // Background Cream
-  surface: '#FFFFFF',        // Card/Surface White
-  textDark: '#2D2D2D',       // Primary Text
-  textGray: '#6B6B6B',       // Secondary Text
-  textLight: '#B8B8B8',      // Placeholder Text
-  success: '#4CAF50',        // Success Green
-  border: '#E8E8E8',         // Border Gray
-  error: '#F44336',          // Error Red
+  primary:       '#E07A5F',   // Terracotta Dusk  — CTAs, main brand
+  secondary:     '#7C6D9E',   // Dusty Violet      — secondary actions
+  accent:        '#6B9E8F',   // Sage              — progress, highlights
+  background:    '#F8F7F4',   // Warm Off-White    — light mode bg
+  backgroundDark:'#13110F',   // Deep Warm Black   — dark mode bg
+  surface:       '#FFFFFF',
+  textPrimary:   '#1C1917',
+  textSecondary: '#57534E',
+  success:       '#4A9E7F',
+  error:         '#C0504A',
+  warning:       '#C49A3C',
 };
 ```
 
 ### Typography
+Fonts are loaded via `@expo-google-fonts/lora` and `@expo-google-fonts/inter`.
+Font assets are declared in `src/constants/typography.ts` (`fontAssets`) and loaded
+in `app/_layout.tsx` using `useFonts(fontAssets)`.
+
+```
+Display 1   48pt  Lora Bold        — hero / onboarding splash
+Display 2   36pt  Lora SemiBold    — section hero blocks
+Heading 1   28pt  Lora Medium      — screen titles
+Heading 2   22pt  Inter SemiBold   — card / section headings
+Heading 3   18pt  Inter SemiBold   — sub-section headings
+Body Large  16pt  Inter Regular    — prominent body copy
+Body        14pt  Inter Regular    — standard body
+Caption     12pt  Inter Regular    — captions, metadata
+Label       11pt  Inter Medium     — ALL CAPS + letterSpacing 0.08em
+```
+
 ```typescript
-const typography = {
-  // Fonts
-  fontPrimary: 'Poppins',    // Headings, Buttons
-  fontSecondary: 'Inter',     // Body Text
-  
-  // Sizes
-  display: 48,               // Hero text
-  h1: 32,                    // Main headings
-  h2: 24,                    // Section headings
-  h3: 20,                    // Subheadings
-  body: 16,                  // Body text
-  small: 14,                 // Small text
-  tiny: 12,                  // Labels, captions
-  
-  // Weights
-  regular: '400',
-  medium: '500',
-  semibold: '600',
-  bold: '700',
-};
+// fontPrimary  → 'Lora_700Bold'      (Display / H1 only)
+// fontSecondary → 'Inter_400Regular'  (everything else)
 ```
 
 ### Spacing & Layout
@@ -238,6 +238,7 @@ Stack Navigator
 8. **Think about user experience**: smooth transitions, helpful error messages, loading states
 9. **Suggest improvements** when you see opportunities to enhance the app
 10. **Help me break down complex features** into manageable implementation steps
+11. **No emojis — ever.** Never use emoji characters in UI text, labels, titles, buttons, placeholders, or any visible string. Use `lucide-react-native` icons for all iconography and visual indicators instead.
 
 ## Current Phase
 We're starting from scratch. Begin with project setup advice, then move to onboarding implementation, followed by core screen time features, and finally gamification elements.

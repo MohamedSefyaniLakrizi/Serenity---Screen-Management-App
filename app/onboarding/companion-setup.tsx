@@ -1,9 +1,11 @@
 import { Button } from '@/components/ui';
 import { spacing, typography } from '@/constants';
+import { FONTS } from '@/constants/typography';
 import { useSequentialFadeIn } from '@/hooks/useOnboardingAnimation';
 import { useThemedColors } from '@/hooks/useThemedStyles';
 import { useAppStore } from '@/store/appStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -36,7 +38,8 @@ export default function Step10Complete() {
         console.error('Error saving onboarding:', result.error);
       }
 
-      console.log('✅ Onboarding complete, event emitted. Layout will handle screen switch.');
+      console.log('✅ Onboarding complete, navigating to paywall.');
+      router.replace('/paywall');
       
     } catch (error) {
       console.error('Unexpected error completing onboarding:', error);
@@ -107,6 +110,7 @@ export default function Step10Complete() {
 
       <Animated.View style={[styles(theme).actions, buttonAnimation]}>
         <Button
+          size="large"
           title={isCompleting ? 'Setting up...' : 'Start Your Journey'}
           onPress={handleComplete}
           disabled={isCompleting}
@@ -141,17 +145,20 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     marginBottom: spacing.lg,
   },
   title: {
-    fontSize: typography.display,
-    fontWeight: typography.bold,
+    fontFamily: FONTS.loraBold,
+    fontSize: typography.sizes.display1,
     color: theme.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.xs,
+    lineHeight: typography.sizes.display1 * 1.15,
   },
   subtitle: {
-    fontSize: typography.body,
+    fontFamily: FONTS.interRegular,
+    fontSize: typography.sizes.bodyLarge,
     color: theme.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.xl,
+    lineHeight: typography.sizes.bodyLarge * 1.55,
   },
   summaryContainer: {
     width: '100%',
@@ -174,8 +181,8 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     marginBottom: spacing.xs / 2,
   },
   summaryValue: {
-    fontSize: typography.h2,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.interSemiBold,
+    fontSize: typography.sizes.h2,
     color: theme.primary,
   },
   tipsContainer: {
@@ -185,8 +192,8 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     padding: spacing.md,
   },
   tipsTitle: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.interSemiBold,
+    fontSize: typography.sizes.body,
     color: theme.textPrimary,
     marginBottom: spacing.sm,
   },

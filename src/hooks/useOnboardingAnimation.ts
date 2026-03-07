@@ -60,13 +60,13 @@ export function useScreenFade(duration: number = 400) {
  * @param config - Animation configuration (duration, stagger delay between elements)
  * @returns Array of animated style objects, one per element
  */
-export function useSequentialFadeIn(count: number, config: { duration?: number; stagger?: number } = {}) {
-  const { duration = 300, stagger = 100 } = config;
+export function useSequentialFadeIn(count: number, config: { duration?: number; stagger?: number; initialDelay?: number } = {}) {
+  const { duration = 300, stagger = 100, initialDelay = 0 } = config;
   
   const animations = Array.from({ length: count }, (_, index) => {
     const opacity = useSharedValue(0);
     const translateY = useSharedValue(20);
-    const delay = index * stagger;
+    const delay = initialDelay + index * stagger;
     
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {

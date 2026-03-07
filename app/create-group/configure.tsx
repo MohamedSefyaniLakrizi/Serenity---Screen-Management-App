@@ -1,19 +1,21 @@
+import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Button } from '@/components/ui';
 import { spacing } from '@/constants';
+import { FONTS } from '@/constants/typography';
 import { useThemedColors } from '@/hooks/useThemedStyles';
-import { AppGroupService, AppInfo } from '@/services/appGroups';
+import { AppGroupService } from '@/services/appGroups';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Lock, Unlock } from 'lucide-react-native';
+import { Lock, Unlock } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  Alert,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -23,10 +25,11 @@ export default function ConfigureGroupScreen() {
   const [groupName, setGroupName] = useState('');
   const [blockMode, setBlockMode] = useState<'unlocks' | 'blocked'>('unlocks');
 
-  // Parse apps from navigation params
-  const selectedApps: AppInfo[] = params.apps
-    ? JSON.parse(params.apps as string)
-    : [];
+  // Parse params from app selection screen
+  const familyActivitySelection = (params.familyActivitySelection as string) ?? '';
+  const applicationCount = parseInt((params.applicationCount as string) ?? '0', 10);
+  const categoryCount = parseInt((params.categoryCount as string) ?? '0', 10);
+  const totalSelected = applicationCount + categoryCount;
 
   // Set default group name on mount
   React.useEffect(() => {
@@ -50,7 +53,9 @@ export default function ConfigureGroupScreen() {
       router.push({
         pathname: '/create-group/unlocks',
         params: {
-          apps: JSON.stringify(selectedApps),
+          familyActivitySelection,
+          applicationCount: applicationCount.toString(),
+          categoryCount: categoryCount.toString(),
           groupName: groupName.trim(),
         },
       });
@@ -58,7 +63,9 @@ export default function ConfigureGroupScreen() {
       router.push({
         pathname: '/create-group/custom-timeframe',
         params: {
-          apps: JSON.stringify(selectedApps),
+          familyActivitySelection,
+          applicationCount: applicationCount.toString(),
+          categoryCount: categoryCount.toString(),
           groupName: groupName.trim(),
         },
       });
@@ -70,29 +77,11 @@ export default function ConfigureGroupScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar barStyle={theme.statusBar} />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <ChevronLeft size={24} color={theme.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: '67%', backgroundColor: theme.primary },
-                ]}
-              />
-            </View>
-            <Text style={[styles.stepText, { color: theme.textSecondary }]}>
-              Step 2 of 3
-            </Text>
-          </View>
-        </View>
+        <OnboardingHeader
+          progressFraction={blockMode === 'unlocks' ? 2 / 4 : 2 / 3}
+          stepLabel={blockMode === 'unlocks' ? 'Step 2 of 4' : 'Step 2 of 3'}
+          onBack={() => router.back()}
+        />
 
         <ScrollView
           style={styles.scrollView}
@@ -108,6 +97,7 @@ export default function ConfigureGroupScreen() {
               <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
                 Set a name and choose how to limit access
               </Text>
+
             </View>
 
             {/* Group Name Input */}
@@ -242,37 +232,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressContainer: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  progressBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  stepText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
   scrollView: {
     flex: 1,
   },
@@ -289,11 +248,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontFamily: FONTS.loraMedium,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
+    fontFamily: FONTS.interRegular,
     lineHeight: 20,
   },
   section: {
@@ -301,13 +261,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.interSemiBold,
   },
   input: {
     borderRadius: 12,
     borderWidth: 2,
     padding: spacing.md,
     fontSize: 16,
+    fontFamily: FONTS.interRegular,
   },
   modeGrid: {
     flexDirection: 'row',
@@ -333,10 +294,11 @@ const styles = StyleSheet.create({
   },
   modeTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.interSemiBold,
   },
   modeSubtitle: {
     fontSize: 12,
+    fontFamily: FONTS.interRegular,
     lineHeight: 16,
   },
   actions: {

@@ -1,9 +1,11 @@
-import { Button } from '@/components/ui';
 import { borderRadius, spacing, typography } from '@/constants';
+import { FONTS } from '@/constants/typography';
 import { useSequentialFadeIn } from '@/hooks/useOnboardingAnimation';
+import { useOnboardingNext } from '@/hooks/useOnboardingNext';
 import { useThemedColors } from '@/hooks/useThemedStyles';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { router } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -20,32 +22,26 @@ const timeOptions = [
 export default function Step7UsagePatterns() {
   const theme = useThemedColors();
   const { whenUsePhoneMost, updateData } = useOnboardingStore();
+  const { navigateNext, progressFraction } = useOnboardingNext('/onboarding/usage-patterns');
   const [selected, setSelected] = useState(whenUsePhoneMost);
-  const [screenFade, titleAnimation, subtitleAnimation, optionsAnimation, buttonAnimation] = useSequentialFadeIn(5, { duration: 300, stagger: 400 });
+  const [screenFade, titleAnimation, subtitleAnimation, optionsAnimation] = useSequentialFadeIn(4, { duration: 300, stagger: 400 });
 
-  const handleContinue = () => {
-    if (selected) {
-      updateData({ whenUsePhoneMost: selected as any });
-      router.push('/onboarding/motivation');
-    }
+  const handleSelect = (id: string) => {
+    setSelected(id as any);
+    updateData({ whenUsePhoneMost: id as any });
+    setTimeout(() => navigateNext(), 300);
   };
 
   return (
     <Animated.View style={[styles(theme).container, screenFade]}>
       <SafeAreaView style={styles(theme).safeArea} edges={['top']}>
       <StatusBar barStyle={theme.statusBar} />
-      <View style={styles(theme).progressBarContainer}>
-        <View style={styles(theme).progressBarWrapper}>
-          <TouchableOpacity 
-            style={styles(theme).backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <Text style={styles(theme).backButtonText}>←</Text>
-          </TouchableOpacity>
-          <View style={styles(theme).progressBarBackground}>
-            <View style={[styles(theme).progressBarFill, { width: '70%' }]} />
-          </View>
+      <View style={styles(theme).header}>
+        <TouchableOpacity style={styles(theme).backButton} onPress={() => router.back()} activeOpacity={0.7}>
+          <ChevronLeft size={22} color={theme.textPrimary} strokeWidth={2} />
+        </TouchableOpacity>
+        <View style={styles(theme).progressTrack}>
+          <View style={[styles(theme).progressFill, { width: `${progressFraction * 100}%` }]} />
         </View>
       </View>
 
@@ -63,7 +59,7 @@ export default function Step7UsagePatterns() {
                 styles(theme).optionCard,
                 selected === option.id && styles(theme).optionCardSelected,
               ]}
-              onPress={() => setSelected(option.id as any)}
+              onPress={() => handleSelect(option.id)}
               activeOpacity={0.7}
             >
               <Text style={styles(theme).optionEmoji}>{option.emoji}</Text>
@@ -81,13 +77,6 @@ export default function Step7UsagePatterns() {
         </Animated.View>
       </View>
 
-      <Animated.View style={[styles(theme).actions, buttonAnimation]}>
-        <Button
-          title="Continue"
-          onPress={handleContinue}
-          disabled={!selected}
-        />
-      </Animated.View>
       </SafeAreaView>
     </Animated.View>
   );
@@ -101,33 +90,25 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
   safeArea: {
     flex: 1,
   },
-  progressBarContainer: {
-    width: '100%',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    paddingTop: spacing.xl,
-    backgroundColor: theme.background,
-  },
-  progressBarWrapper: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
   },
   backButton: {
     padding: spacing.xs,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: theme.textPrimary,
-  },
-  progressBarBackground: {
+  progressTrack: {
     flex: 1,
     height: 6,
     backgroundColor: theme.surface,
     borderRadius: 3,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
     backgroundColor: theme.primary,
     borderRadius: 3,
@@ -138,15 +119,18 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     paddingTop: spacing.xxl,
   },
   title: {
-    fontSize: typography.h1,
-    fontWeight: typography.bold,
+    fontFamily: FONTS.loraBold,
+    fontSize: typography.sizes.h1,
     color: theme.textPrimary,
     marginBottom: spacing.sm,
+    lineHeight: typography.sizes.h1 * 1.25,
   },
   subtitle: {
-    fontSize: typography.body,
+    fontFamily: FONTS.interRegular,
+    fontSize: typography.sizes.bodyLarge,
     color: theme.textSecondary,
     marginBottom: spacing.xl,
+    lineHeight: typography.sizes.bodyLarge * 1.55,
   },
   optionsContainer: {
     gap: spacing.md,
@@ -172,13 +156,14 @@ const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create(
     flex: 1,
   },
   optionLabel: {
-    fontSize: typography.h3,
-    fontWeight: typography.semibold,
+    fontFamily: FONTS.interSemiBold,
+    fontSize: typography.sizes.h3,
     color: theme.textPrimary,
     marginBottom: spacing.xs / 2,
   },
   optionTime: {
-    fontSize: typography.small,
+    fontFamily: FONTS.interRegular,
+    fontSize: typography.sizes.caption,
     color: theme.textSecondary,
   },
   checkmark: {

@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "appleTeamId": "TL9UW7M88J",
+      "appleTeamId": "L53JAUN9Z8",
       "bundleIdentifier": "com.msl.serenity",
       "buildNumber": "1.0.0",
       "infoPlist": {
@@ -52,10 +52,11 @@
       [
         "react-native-device-activity",
         {
-          "appleTeamId": "TL9UW7M88J",
+          "appleTeamId": "L53JAUN9Z8",
           "appGroup": "group.com.msl.serenity"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

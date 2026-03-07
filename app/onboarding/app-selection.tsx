@@ -1,450 +1,545 @@
+import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Button } from '@/components/ui';
-import { spacing, typography } from '@/constants';
+import { getNextStep, getProgressFraction } from '@/config/onboardingFlow';
+import { spacing } from '@/constants';
+import { FONTS } from '@/constants/typography';
 import { useSequentialFadeIn } from '@/hooks/useOnboardingAnimation';
-import { useThemedColors } from '@/hooks/useThemedStyles';
+import { useOnboardingNext } from '@/hooks/useOnboardingNext';
+import { useThemedColors, useThemedStyles } from '@/hooks/useThemedStyles';
+import { AppGroupService } from '@/services/appGroups';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, NativeModules, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { Briefcase, Globe, Lock, Moon, Unlock } from 'lucide-react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Modal,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import {
+  AuthorizationStatus,
+  DeviceActivitySelectionView,
+  getAuthorizationStatus,
+  requestAuthorization,
+} from 'react-native-device-activity';
+import AnimatedRN from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FamilyActivitySelection, ScreenTimeUtils } from '../../modules/screentime';
 
-const { ScreenTimeModule } = NativeModules;
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const DAYS = [
+  { id: 'mon', label: 'M' },
+  { id: 'tue', label: 'T' },
+  { id: 'wed', label: 'W' },
+  { id: 'thu', label: 'T' },
+  { id: 'fri', label: 'F' },
+  { id: 'sat', label: 'Sa' },
+  { id: 'sun', label: 'Su' },
+];
+
+const TIME_PRESETS = [
+  { label: 'All Day', start: '00:00', end: '23:59', days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], Icon: Globe },
+  { label: 'Work',    start: '09:00', end: '17:00', days: ['mon', 'tue', 'wed', 'thu', 'fri'],               Icon: Briefcase },
+  { label: 'Night',   start: '22:00', end: '06:00', days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], Icon: Moon },
+];
+
+const UNLOCK_PRESETS = [1, 2, 3, 5, 10];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AppSelection() {
   const theme = useThemedColors();
-  const { updateData } = useOnboardingStore();
-  
-  const [screenFade, titleAnimation, subtitleAnimation, contentAnimation, buttonAnimation] = useSequentialFadeIn(5, { duration: 300, stagger: 400 });
-  
-  // Authorization state
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const { isDark } = useThemedStyles();
+  const { updateData, screenTimePermissionGranted } = useOnboardingStore();
+  const { navigateNext, progressFraction, variant } = useOnboardingNext('/onboarding/app-selection');
+
+  const [screenFade] = useSequentialFadeIn(1, { duration: 300, stagger: 0 });
+
+  // step 1: app select | 2: access control | 3: unlocks count (unlocks mode) | 3/4: when to block
+  const [step, setStep] = useState(1);
+  const [blockMode, setBlockMode] = useState<'unlocks' | 'blocked'>('unlocks');
+
+  // Step 1
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Selection state
-  const [selection, setSelection] = useState<FamilyActivitySelection | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [familyActivitySelection, setFamilyActivitySelection] = useState<string | null>(null);
+  const [applicationCount, setApplicationCount] = useState(0);
+  const [categoryCount, setCategoryCount] = useState(0);
 
+  // Step 3 (unlocks)
+  const [selectedUnlocks, setSelectedUnlocks] = useState(3);
+  const [customUnlocks, setCustomUnlocks] = useState('');
+
+  // Step 3/4 (when to block)
+  const [startTime, setStartTime] = useState(new Date(2024, 0, 1, 9, 0));
+  const [endTime, setEndTime] = useState(new Date(2024, 0, 1, 17, 0));
+  const [selectedDays, setSelectedDays] = useState<string[]>(['mon', 'tue', 'wed', 'thu', 'fri']);
+  const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const slideAnim = useRef(new Animated.Value(300)).current;
+
+  const [saving, setSaving] = useState(false);
+
+  const totalInternalSteps = blockMode === 'unlocks' ? 4 : 3;
+  const internalStepFraction = (step - 1) / Math.max(totalInternalSteps - 1, 1);
+
+  const flowProgress = useMemo(() => {
+    const ctx = { screenTimePermissionGranted };
+    const nextStep = getNextStep('/onboarding/app-selection', variant, ctx);
+    const nextProgress = nextStep
+      ? getProgressFraction(nextStep.route, variant, ctx)
+      : progressFraction;
+
+    return progressFraction + (nextProgress - progressFraction) * internalStepFraction;
+  }, [internalStepFraction, progressFraction, screenTimePermissionGranted, variant]);
+
+  // ── Time picker animation ──────────────────────────────────────────────────
   useEffect(() => {
-    initializeScreenTime();
-  }, []);
-
-  const initializeScreenTime = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Check if ScreenTimeModule is available
-      if (!ScreenTimeModule || !ScreenTimeModule.requestAuthorization) {
-        console.log('ScreenTimeModule not available, skipping app selection');
-        skipToNextStep();
-        return;
-      }
-      
-      // Request Screen Time authorization
-      const authorized = await ScreenTimeUtils.requestAuthorization();
-      setIsAuthorized(authorized);
-      
-      if (!authorized) {
-        console.log('Screen Time authorization not granted, skipping app selection');
-        setTimeout(() => skipToNextStep(), 500);
-        return;
-      }
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error initializing Screen Time:', error);
-      setError('Failed to initialize Screen Time');
-      setIsLoading(false);
-      setTimeout(() => skipToNextStep(), 500);
+    if (showStartPicker || showEndPicker) {
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
+    } else {
+      slideAnim.setValue(300);
     }
-  };
+  }, [showStartPicker, showEndPicker]);
 
-  const skipToNextStep = () => {
-    updateData({
-      selectedApps: [],
-      selectedCategories: [],
-    });
-    router.push('./usage-patterns');
-  };
+  // ── Auth init ──────────────────────────────────────────────────────────────
+  useEffect(() => { initializeAuth(); }, []);
 
-  const handleOpenPicker = async () => {
+  const initializeAuth = async () => {
+    setIsLoading(true);
     try {
-      setError(null);
-      const result = await ScreenTimeUtils.presentActivityPicker();
-      
-      if (result) {
-        setSelection(result);
+      const status = getAuthorizationStatus();
+      if (status === AuthorizationStatus.approved) {
+        updateData({ screenTimePermissionGranted: true });
+        setIsLoading(false);
+        return;
+      }
+      if (status === AuthorizationStatus.denied) { skipToNext(); return; }
+      await requestAuthorization('individual');
+      const newStatus = getAuthorizationStatus();
+      if (newStatus === AuthorizationStatus.approved) {
+        updateData({ screenTimePermissionGranted: true });
       } else {
-        // User cancelled or error occurred
-        setError('No apps selected. You can select apps later in settings.');
+        skipToNext();
+        return;
       }
-    } catch (error) {
-      console.error('Error opening activity picker:', error);
-      setError('Failed to open app picker. Please try again.');
-    }
+    } catch { skipToNext(); return; }
+    setIsLoading(false);
   };
 
-  const handleContinue = () => {
-    if (!selection) {
-      skipToNextStep();
+  const skipToNext = () => {
+    updateData({ selectedApps: [], selectedCategories: [] });
+    navigateNext();
+  };
+
+  const formatTime = (d: Date) =>
+    `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+
+  const handlePresetSelect = (index: number) => {
+    const p = TIME_PRESETS[index];
+    setSelectedPreset(index);
+    const [sh, sm] = p.start.split(':').map(Number);
+    setStartTime(new Date(2024, 0, 1, sh, sm));
+    const [eh, em] = p.end.split(':').map(Number);
+    setEndTime(new Date(2024, 0, 1, eh, em));
+    setSelectedDays(p.days);
+  };
+
+  const toggleDay = (id: string) => {
+    setSelectedDays(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]);
+    setSelectedPreset(null);
+  };
+
+  // ── Final create ───────────────────────────────────────────────────────────
+  const handleCreate = async () => {
+    if (selectedDays.length === 0) {
+      Alert.alert('Select days', 'Please select at least one day.');
       return;
     }
-
-    // Extract bundle IDs from selected apps
-    const selectedAppBundles = selection.applications.map(app => app.bundleId);
-    
-    // Extract category IDs
-    const selectedCategoryIds = selection.categories.map(cat => cat.id);
-    
-    // Get all apps from selected categories
-    const appsFromCategories = selection.applications
-      .filter(app => selection.categories.some(cat => cat.id === app.category))
-      .map(app => app.bundleId);
-    
-    // Combine both individual apps and category apps
-    const allSelectedApps = Array.from(new Set([...selectedAppBundles, ...appsFromCategories]));
-    
-    updateData({
-      selectedApps: allSelectedApps,
-      selectedCategories: selectedCategoryIds,
-    });
-    
-    router.push('./usage-patterns');
+    setSaving(true);
+    try {
+      const groups = await AppGroupService.getAppGroups();
+      const groupName = groups.length === 0 ? 'Group 1' : `Group ${groups.length + 1}`;
+      const unlocks = blockMode === 'unlocks'
+        ? (customUnlocks ? parseInt(customUnlocks, 10) : selectedUnlocks)
+        : 0;
+      await AppGroupService.createAppGroup(
+        groupName, [], 30, unlocks, true,
+        familyActivitySelection || undefined, applicationCount, categoryCount,
+      );
+      updateData({
+        selectedApps: familyActivitySelection ? [familyActivitySelection] : [],
+        selectedCategories: [],
+      });
+      navigateNext();
+    } catch (error) {
+      console.error('Error creating group:', error);
+      Alert.alert('Error', 'Failed to create group. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Render loading state
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <Animated.View style={[styles(theme).container, screenFade]}>
-        <SafeAreaView style={styles(theme).safeArea} edges={['top']}>
+      <AnimatedRN.View style={[styles.container, { backgroundColor: theme.background }, screenFade]}>
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
           <StatusBar barStyle={theme.statusBar} />
-          <View style={styles(theme).loadingContainer}>
+          <View style={styles.centered}>
             <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={styles(theme).loadingText}>Initializing Screen Time...</Text>
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Requesting permission…</Text>
           </View>
         </SafeAreaView>
-      </Animated.View>
+      </AnimatedRN.View>
     );
   }
 
-  // Render unauthorized state (auto-skips)
-  if (!isAuthorized) {
+  // ── Step 1: App selection ──────────────────────────────────────────────────
+  if (step === 1) {
     return (
-      <Animated.View style={[styles(theme).container, screenFade]}>
-        <SafeAreaView style={styles(theme).safeArea} edges={['top']}>
+      <AnimatedRN.View style={[styles.container, { backgroundColor: theme.background }, screenFade]}>
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
           <StatusBar barStyle={theme.statusBar} />
-          <View style={styles(theme).loadingContainer}>
-            <Text style={styles(theme).errorText}>Screen Time not available</Text>
-            <Text style={styles(theme).errorSubtext}>Skipping to next step...</Text>
+          <OnboardingHeader
+            progressFraction={flowProgress}
+            onBack={() => (step > 1 ? setStep((s) => s - 1) : router.back())}
+          />
+          <View style={styles.titleSection}>
+            <Text style={[styles.title, { color: theme.textPrimary }]}>Select Apps</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+              Choose the apps and categories you want to limit or block
+            </Text>
+          </View>
+          <View style={[styles.pickerContainer, { backgroundColor: theme.background }]}> 
+            <DeviceActivitySelectionView
+              style={[styles.picker, { backgroundColor: theme.background }]}
+              onSelectionChange={(event: any) => {
+                const { familyActivitySelection: token, applicationCount: apps, categoryCount: cats } = event?.nativeEvent ?? {};
+                setFamilyActivitySelection(token ?? null);
+                setApplicationCount(apps ?? 0);
+                setCategoryCount(cats ?? 0);
+              }}
+              familyActivitySelection={familyActivitySelection}
+              headerText="Select apps to limit"
+              footerText="Your selection is private and stays on-device"
+              appearance={isDark ? 'dark' : 'light'}
+            />
+          </View>
+          <View style={[styles.actions, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+            {(applicationCount + categoryCount) > 0 && (
+              <Text style={[styles.selectionSummary, { color: theme.textSecondary }]}>
+                {applicationCount > 0 && `${applicationCount} app${applicationCount !== 1 ? 's' : ''}`}
+                {applicationCount > 0 && categoryCount > 0 && '  ·  '}
+                {categoryCount > 0 && `${categoryCount} categor${categoryCount !== 1 ? 'ies' : 'y'}`}
+              </Text>
+            )}
+            <Button title="Continue" onPress={() => setStep(2)} />
           </View>
         </SafeAreaView>
-      </Animated.View>
+      </AnimatedRN.View>
     );
   }
 
+  // ── Step 2: Access control ─────────────────────────────────────────────────
+  if (step === 2) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <StatusBar barStyle={theme.statusBar} />
+          <OnboardingHeader
+            progressFraction={flowProgress}
+            onBack={() => (step > 1 ? setStep((s) => s - 1) : router.back())}
+          />
+          <View style={[styles.content, { paddingHorizontal: spacing.lg }]}>
+            <View style={styles.titleSection}>
+              <Text style={[styles.title, { color: theme.textPrimary }]}>Access Control</Text>
+              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                Choose how to limit access to the selected apps
+              </Text>
+            </View>
+            <View style={styles.modeGrid}>
+              <TouchableOpacity
+                style={[styles.modeCard, { backgroundColor: theme.surface, borderColor: blockMode === 'unlocks' ? theme.primary : theme.border }]}
+                onPress={() => setBlockMode('unlocks')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.modeIcon, { backgroundColor: blockMode === 'unlocks' ? theme.primaryLight : theme.surfaceSecondary }]}>
+                  <Unlock size={24} color={blockMode === 'unlocks' ? theme.primary : theme.textSecondary} />
+                </View>
+                <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>Limited Unlocks</Text>
+                <Text style={[styles.modeSubtitle, { color: theme.textSecondary }]}>Allow a set number of unlocks per day</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeCard, { backgroundColor: theme.surface, borderColor: blockMode === 'blocked' ? theme.primary : theme.border }]}
+                onPress={() => setBlockMode('blocked')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.modeIcon, { backgroundColor: blockMode === 'blocked' ? theme.primaryLight : theme.surfaceSecondary }]}>
+                  <Lock size={24} color={blockMode === 'blocked' ? theme.primary : theme.textSecondary} />
+                </View>
+                <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>Fully Blocked</Text>
+                <Text style={[styles.modeSubtitle, { color: theme.textSecondary }]}>Block completely with no access</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={[styles.actions, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+            <Button title="Continue" onPress={() => setStep(3)} />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  // ── Step 3: Unlocks count (only if unlocks mode) ───────────────────────────
+  if (step === 3 && blockMode === 'unlocks') {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <StatusBar barStyle={theme.statusBar} />
+          <OnboardingHeader
+            progressFraction={flowProgress}
+            onBack={() => (step > 1 ? setStep((s) => s - 1) : router.back())}
+          />
+          <View style={[styles.content, { paddingHorizontal: spacing.lg }]}>
+            <View style={styles.titleSection}>
+              <Text style={[styles.title, { color: theme.textPrimary }]}>Daily Unlocks</Text>
+              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                How many times can you unlock these apps per day?
+              </Text>
+            </View>
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Quick Select</Text>
+              <View style={styles.presetsGrid}>
+                {UNLOCK_PRESETS.map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[styles.presetButton, { backgroundColor: theme.surface, borderColor: !customUnlocks && selectedUnlocks === preset ? theme.primary : theme.border }]}
+                    onPress={() => { setSelectedUnlocks(preset); setCustomUnlocks(''); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.presetNumber, { color: !customUnlocks && selectedUnlocks === preset ? theme.primary : theme.textPrimary }]}>{preset}</Text>
+                    <Text style={[styles.presetLabel, { color: !customUnlocks && selectedUnlocks === preset ? theme.primary : theme.textSecondary }]}>unlocks</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Or Enter Custom Amount</Text>
+              <TextInput
+                style={[styles.customInput, { backgroundColor: theme.surface, borderColor: customUnlocks ? theme.primary : theme.border, color: theme.textPrimary }]}
+                placeholder="Enter number"
+                placeholderTextColor={theme.textTertiary}
+                value={customUnlocks}
+                onChangeText={(t) => { setCustomUnlocks(t); if (t) setSelectedUnlocks(0); }}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+            </View>
+          </View>
+          <View style={[styles.actions, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+            <Button title="Continue" onPress={() => {
+              const u = customUnlocks ? parseInt(customUnlocks, 10) : selectedUnlocks;
+              if (isNaN(u) || u < 0 || u > 100) { Alert.alert('Invalid', 'Enter a number between 0 and 100.'); return; }
+              setStep(4);
+            }} />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  // ── Step 3 (blocked) or 4 (unlocks): When to block ────────────────────────
   return (
-    <Animated.View style={[styles(theme).container, screenFade]}>
-      <SafeAreaView style={styles(theme).safeArea} edges={['top']}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar barStyle={theme.statusBar} />
-        
-        {/* Progress bar */}
-        <View style={styles(theme).progressBarContainer}>
-          <View style={styles(theme).progressBarWrapper}>
-            <TouchableOpacity 
-              style={styles(theme).backButton}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <Text style={styles(theme).backButtonText}>←</Text>
-            </TouchableOpacity>
-            <View style={styles(theme).progressBarBackground}>
-              <View style={[styles(theme).progressBarFill, { width: '50%' }]} />
+        <OnboardingHeader
+          progressFraction={flowProgress}
+          onBack={() => (step > 1 ? setStep((s) => s - 1) : router.back())}
+        />
+        <View style={[styles.content, { paddingHorizontal: spacing.lg }]}>
+          <View style={styles.titleSection}>
+            <Text style={[styles.title, { color: theme.textPrimary }]}>When to Block</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+              Choose a preset or customize your blocking schedule
+            </Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Quick Presets</Text>
+            <View style={styles.presetsRow}>
+              {TIME_PRESETS.map((preset, index) => {
+                                const active = selectedPreset === index;
+                                const iconColor = active ? '#fff' : theme.textSecondary;
+                                return (
+                                  <TouchableOpacity
+                                    key={index}
+                                    style={[
+                                      styles.presetChip,
+                                      {
+                                        backgroundColor: active ? theme.primary : theme.surface,
+                                        borderColor: active ? theme.primary : theme.border,
+                                      },
+                                    ]}
+                                    onPress={() => handlePresetSelect(index)}
+                                    activeOpacity={0.7}
+                                  >
+                                    <preset.Icon size={16} color={iconColor} />
+                                    <Text
+                                      numberOfLines={1}
+                                      style={[
+                                        styles.presetChipText,
+                                        { color: active ? '#fff' : theme.textPrimary },
+                                      ]}
+                                    >
+                                      {preset.label}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Custom Time Range</Text>
+            <View style={styles.timeRow}>
+              <View style={styles.timeColumn}>
+                <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>Start Time</Text>
+                <TouchableOpacity
+                  style={[styles.timeButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                  onPress={() => { setShowStartPicker(true); setSelectedPreset(null); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.timeText, { color: theme.textPrimary }]}>{formatTime(startTime)}</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.timeSeparator, { color: theme.textSecondary }]}>to</Text>
+              <View style={styles.timeColumn}>
+                <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>End Time</Text>
+                <TouchableOpacity
+                  style={[styles.timeButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                  onPress={() => { setShowEndPicker(true); setSelectedPreset(null); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.timeText, { color: theme.textPrimary }]}>{formatTime(endTime)}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Active Days</Text>
+            <View style={styles.daysGrid}>
+              {DAYS.map((day) => (
+                <TouchableOpacity
+                  key={day.id}
+                  style={[styles.dayButton, { backgroundColor: selectedDays.includes(day.id) ? theme.primary : theme.surface, borderColor: selectedDays.includes(day.id) ? theme.primary : theme.border }]}
+                  onPress={() => toggleDay(day.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.dayText, { color: selectedDays.includes(day.id) ? '#fff' : theme.textPrimary }]}>{day.label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </View>
 
-        <ScrollView 
-          style={styles(theme).scrollContent}
-          contentContainerStyle={styles(theme).scrollContentContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles(theme).content}>
-            <Animated.Text style={[styles(theme).title, titleAnimation]}>
-              Select Apps to Manage
-            </Animated.Text>
-            
-            <Animated.Text style={[styles(theme).subtitle, subtitleAnimation]}>
-              Choose which apps and categories you want Serenity to help you manage. You can change this anytime in settings.
-            </Animated.Text>
-
-            <Animated.View style={[styles(theme).pickerSection, contentAnimation]}>
-              {!selection ? (
-                <View style={styles(theme).emptyState}>
-                  <Text style={styles(theme).emptyStateIcon}>📱</Text>
-                  <Text style={styles(theme).emptyStateTitle}>No apps selected yet</Text>
-                  <Text style={styles(theme).emptyStateText}>
-                    Tap the button below to open the app picker and choose which apps you'd like to manage.
-                  </Text>
-                  
-                  <Button
-                    title="Select Apps & Categories"
-                    onPress={handleOpenPicker}
-                    style={styles(theme).pickerButton}
-                  />
-                </View>
-              ) : (
-                <View style={styles(theme).selectionDisplay}>
-                  {/* Selected Categories */}
-                  {selection.categories.length > 0 && (
-                    <View style={styles(theme).selectionSection}>
-                      <Text style={styles(theme).selectionSectionTitle}>
-                        Categories ({selection.categories.length})
-                      </Text>
-                      {selection.categories.map((category) => (
-                        <View key={category.id} style={styles(theme).selectionItem}>
-                          <Text style={styles(theme).selectionItemIcon}>{category.icon}</Text>
-                          <Text style={styles(theme).selectionItemText}>{category.name}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  {/* Selected Apps */}
-                  {selection.applications.length > 0 && (
-                    <View style={styles(theme).selectionSection}>
-                      <Text style={styles(theme).selectionSectionTitle}>
-                        Individual Apps ({selection.applications.length})
-                      </Text>
-                      {selection.applications.map((app) => (
-                        <View key={app.bundleId} style={styles(theme).selectionItem}>
-                          <View style={styles(theme).appIconPlaceholder}>
-                            <Text style={styles(theme).appIconText}>
-                              {app.name.charAt(0).toUpperCase()}
-                            </Text>
-                          </View>
-                          <View style={styles(theme).appInfo}>
-                            <Text style={styles(theme).selectionItemText}>{app.name}</Text>
-                            <Text style={styles(theme).selectionItemSubtext}>{app.categoryName}</Text>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  <Text style={styles(theme).selectionNote}>
-                    ✨ These apps will be managed by Serenity to help you stay focused and mindful.
-                  </Text>
-                </View>
-              )}
-
-              {error && (
-                <View style={styles(theme).errorContainer}>
-                  <Text style={styles(theme).errorTextSmall}>{error}</Text>
-                </View>
-              )}
-            </Animated.View>
-          </View>
-        </ScrollView>
-
-        <Animated.View style={[styles(theme).actions, buttonAnimation]}>
-          <Button
-            title={selection ? "Continue" : "Skip for Now"}
-            onPress={handleContinue}
-          />
-        </Animated.View>
+        <View style={[styles.actions, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+          <Button title="Create Group" onPress={handleCreate} disabled={saving || selectedDays.length === 0} />
+        </View>
       </SafeAreaView>
-    </Animated.View>
+
+      {showStartPicker && (
+        <Modal transparent animationType="fade" visible onRequestClose={() => setShowStartPicker(false)}>
+          <Pressable style={styles.modalOverlay} onPress={() => setShowStartPicker(false)}>
+            <Animated.View style={[styles.pickerModal, { backgroundColor: theme.surface, transform: [{ translateY: slideAnim }] }]}>
+              <Pressable onPress={(e) => e.stopPropagation()}>
+                <View style={styles.pickerHeader}>
+                  <TouchableOpacity onPress={() => setShowStartPicker(false)}>
+                    <Text style={[styles.pickerDone, { color: theme.primary }]}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.pickerContent}>
+                  <DateTimePicker value={startTime} mode="time" display="spinner" onChange={(_, d) => d && setStartTime(d)} textColor={theme.textPrimary} />
+                </View>
+              </Pressable>
+            </Animated.View>
+          </Pressable>
+        </Modal>
+      )}
+
+      {showEndPicker && (
+        <Modal transparent animationType="fade" visible onRequestClose={() => setShowEndPicker(false)}>
+          <Pressable style={styles.modalOverlay} onPress={() => setShowEndPicker(false)}>
+            <Animated.View style={[styles.pickerModal, { backgroundColor: theme.surface, transform: [{ translateY: slideAnim }] }]}>
+              <Pressable onPress={(e) => e.stopPropagation()}>
+                <View style={styles.pickerHeader}>
+                  <TouchableOpacity onPress={() => setShowEndPicker(false)}>
+                    <Text style={[styles.pickerDone, { color: theme.primary }]}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.pickerContent}>
+                  <DateTimePicker value={endTime} mode="time" display="spinner" onChange={(_, d) => d && setEndTime(d)} textColor={theme.textPrimary} />
+                </View>
+              </Pressable>
+            </Animated.View>
+          </Pressable>
+        </Modal>
+      )}
+    </View>
   );
 }
 
-const styles = (theme: ReturnType<typeof useThemedColors>) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-  },
-  loadingText: {
-    marginTop: spacing.md,
-    fontSize: typography.body,
-    color: theme.textSecondary,
-  },
-  errorText: {
-    fontSize: typography.body,
-    color: theme.error,
-    textAlign: 'center',
-  },
-  errorSubtext: {
-    marginTop: spacing.sm,
-    fontSize: typography.small,
-    color: theme.textSecondary,
-    textAlign: 'center',
-  },
-  progressBarContainer: {
-    width: '100%',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    paddingTop: spacing.xl,
-    backgroundColor: theme.background,
-  },
-  progressBarWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  backButton: {
-    padding: spacing.xs,
-  },
-  backButtonText: {
-    fontSize: 24,
-    color: theme.textPrimary,
-  },
-  progressBarBackground: {
-    flex: 1,
-    height: 6,
-    backgroundColor: theme.surface,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: theme.primary,
-    borderRadius: 3,
-  },
-  scrollContent: {
-    flex: 1,
-  },
-  scrollContentContainer: {
-    flexGrow: 1,
-    paddingBottom: spacing.xxl,
-  },
-  content: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  title: {
-    fontSize: typography.h1,
-    fontWeight: typography.bold,
-    color: theme.textPrimary,
-    marginBottom: spacing.md,
-  },
-  subtitle: {
-    fontSize: typography.body,
-    color: theme.textSecondary,
-    marginBottom: spacing.xl,
-    lineHeight: 24,
-  },
-  pickerSection: {
-    flex: 1,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-    backgroundColor: theme.surface,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: theme.border,
-    borderStyle: 'dashed',
-  },
-  emptyStateIcon: {
-    fontSize: 64,
-    marginBottom: spacing.md,
-  },
-  emptyStateTitle: {
-    fontSize: typography.h3,
-    fontWeight: typography.semibold,
-    color: theme.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  emptyStateText: {
-    fontSize: typography.body,
-    color: theme.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-    lineHeight: 22,
-  },
-  pickerButton: {
-    minWidth: 200,
-  },
-  selectionDisplay: {
-    gap: spacing.lg,
-  },
-  selectionSection: {
-    backgroundColor: theme.surface,
-    borderRadius: 16,
-    padding: spacing.lg,
-  },
-  selectionSectionTitle: {
-    fontSize: typography.h3,
-    fontWeight: typography.semibold,
-    color: theme.textPrimary,
-    marginBottom: spacing.md,
-  },
-  selectionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    gap: spacing.md,
-  },
-  selectionItemIcon: {
-    fontSize: 32,
-  },
-  appIconPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: theme.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  appIconText: {
-    fontSize: 18,
-    fontWeight: typography.bold,
-    color: '#FFFFFF',
-  },
-  appInfo: {
-    flex: 1,
-  },
-  selectionItemText: {
-    fontSize: typography.body,
-    fontWeight: typography.medium,
-    color: theme.textPrimary,
-  },
-  selectionItemSubtext: {
-    fontSize: typography.small,
-    color: theme.textSecondary,
-    marginTop: 2,
-  },
-  selectionNote: {
-    fontSize: typography.small,
-    color: theme.textSecondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: spacing.md,
-  },
-  errorContainer: {
-    backgroundColor: theme.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.error,
-  },
-  errorTextSmall: {
-    fontSize: typography.small,
-    color: theme.error,
-  },
-  actions: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  loadingText: { marginTop: spacing.md, fontSize: 16, fontFamily: FONTS.interMedium },
+  titleSection: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: 4 },
+  title: { fontSize: 28, fontFamily: FONTS.loraMedium, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, fontFamily: FONTS.interRegular, lineHeight: 20 },
+  pickerContainer: { flex: 1 },
+  picker: { flex: 1 },
+  selectionSummary: { fontSize: 13, fontFamily: FONTS.interRegular, textAlign: 'center', marginBottom: spacing.sm },
+  actions: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, borderTopWidth: 1 },
+  content: { flex: 1, gap: spacing.lg, paddingTop: spacing.xs },
+  section: { gap: spacing.sm },
+  sectionTitle: { fontSize: 16, fontFamily: FONTS.interSemiBold },
+  modeGrid: { flexDirection: 'row', gap: spacing.md },
+  modeCard: { flex: 1, borderRadius: 16, borderWidth: 2, padding: spacing.md, gap: spacing.xs },
+  modeIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  modeTitle: { fontSize: 15, fontFamily: FONTS.interSemiBold },
+  modeSubtitle: { fontSize: 12, fontFamily: FONTS.interRegular, lineHeight: 16 },
+  presetsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  presetButton: { borderRadius: 12, borderWidth: 2, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, alignItems: 'center', minWidth: 70 },
+  presetNumber: { fontSize: 20, fontFamily: FONTS.interBold, marginBottom: 2 },
+  presetLabel: { fontSize: 11, fontFamily: FONTS.interMedium },
+  customInput: { borderRadius: 12, borderWidth: 2, padding: spacing.md, fontSize: 18, textAlign: 'center', fontFamily: FONTS.interSemiBold },
+  presetsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  presetChip: { width: '31.5%', minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, minWidth: 0, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm, borderRadius: 20, borderWidth: 2 },
+  presetChipText: { flexShrink: 1, fontSize: 12, fontFamily: FONTS.interSemiBold },
+  timeRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md },
+  timeColumn: { flex: 1, gap: 4 },
+  timeLabel: { fontSize: 14, fontFamily: FONTS.interMedium },
+  timeButton: { borderRadius: 12, borderWidth: 2, padding: spacing.md, alignItems: 'center' },
+  timeText: { fontSize: 20, fontFamily: FONTS.interBold },
+  timeSeparator: { fontSize: 14, fontFamily: FONTS.interMedium, paddingBottom: spacing.md },
+  daysGrid: { flexDirection: 'row', gap: spacing.sm },
+  dayButton: { flex: 1, borderRadius: 12, borderWidth: 2, paddingVertical: spacing.sm, alignItems: 'center', justifyContent: 'center' },
+  dayText: { fontSize: 14, fontFamily: FONTS.interSemiBold },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  pickerModal: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: spacing.xl },
+  pickerHeader: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.1)' },
+  pickerDone: { fontSize: 17, fontFamily: FONTS.interSemiBold },
+  pickerContent: { alignItems: 'center', justifyContent: 'center' },
 });

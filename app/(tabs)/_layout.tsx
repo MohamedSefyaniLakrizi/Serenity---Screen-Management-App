@@ -47,7 +47,7 @@ export default function TabsLayout() {
   }
 
   return (
-    <NativeTabs>
+    <NativeTabs tintColor={theme.primary} backgroundColor={theme.surface}>
       <NativeTabs.Trigger name="index">
         <Label>Apps</Label>
         <Icon sf="square.grid.2x2.fill" drawable="grid_view" />
