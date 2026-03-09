@@ -11,13 +11,19 @@
  * BlurView overlay, Lottie brand logo, Lora serif headings.
  */
 
-import { AppGroup, AppGroupService } from '@/services/appGroups';
-import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppGroup, AppGroupService } from "@/services/appGroups";
+import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     Dimensions,
     Image,
@@ -26,7 +32,7 @@ import {
     StyleSheet,
     Text,
     View,
-} from 'react-native';
+} from "react-native";
 import Animated, {
     Easing,
     useAnimatedProps,
@@ -35,13 +41,13 @@ import Animated, {
     withRepeat,
     withSequence,
     withTiming,
-} from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Circle } from "react-native-svg";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const { width: W, height: H } = Dimensions.get('window');
+const { width: W, height: H } = Dimensions.get("window");
 const HOLD_DURATION_MS = 5_000;
 const RING_RADIUS = 44;
 const RING_STROKE = 4;
@@ -51,11 +57,11 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // Motivating messages for the limited-mode countdown
 const COUNTDOWN_PHRASES = [
-  'Breathe in slowly…',
-  'Feel the stillness…',
-  'You are in control.',
-  'Almost there…',
-  'One last breath…',
+  "Breathe in slowly…",
+  "Feel the stillness…",
+  "You are in control.",
+  "Almost there…",
+  "One last breath…",
 ];
 
 // Random quotes shown on blocked / no-unlocks screen
@@ -68,7 +74,7 @@ const BLOCKED_QUOTES = [
   '"Every moment of resistance to temptation is a victory."\n\u2014 Frederick William Faber',
   '"What you pay attention to grows. Pay attention to what matters."',
   '"Rest is not idleness. It is the work of a different kind."',
-  "\"You don't have to scroll to feel alive.\"",
+  '"You don\'t have to scroll to feel alive."',
   '"Small disciplines repeated with consistency every day lead to great achievements."\n\u2014 John C. Maxwell',
 ];
 
@@ -78,37 +84,37 @@ const BLOCKED_QUOTES = [
 
 const DEV_MOCK_GROUPS: Record<string, AppGroup> = {
   __dev_limited__: {
-    id: '__dev_limited__',
-    name: 'Social Media',
+    id: "__dev_limited__",
+    name: "Social Media",
     apps: [],
     sessionLength: 30,
     dailyUnlocks: 3,
     currentUnlocks: 2, // 2 remaining
     isBlocked: false,
     createdAt: new Date().toISOString(),
-    lastReset: new Date().toISOString().split('T')[0],
+    lastReset: new Date().toISOString().split("T")[0],
   },
   __dev_blocked__: {
-    id: '__dev_blocked__',
-    name: 'Games',
+    id: "__dev_blocked__",
+    name: "Games",
     apps: [],
     sessionLength: 0,
     dailyUnlocks: 0,
     currentUnlocks: 0,
     isBlocked: true,
     createdAt: new Date().toISOString(),
-    lastReset: new Date().toISOString().split('T')[0],
+    lastReset: new Date().toISOString().split("T")[0],
   },
   __dev_no_unlocks__: {
-    id: '__dev_no_unlocks__',
-    name: 'Social Media',
+    id: "__dev_no_unlocks__",
+    name: "Social Media",
     apps: [],
     sessionLength: 30,
     dailyUnlocks: 3,
     currentUnlocks: 0, // all used up
     isBlocked: false,
     createdAt: new Date().toISOString(),
-    lastReset: new Date().toISOString().split('T')[0],
+    lastReset: new Date().toISOString().split("T")[0],
   },
 };
 
@@ -138,32 +144,32 @@ export default function MindfulPauseScreen() {
 
   // ── Video player (loops silently, graceful fallback on missing asset) ──────
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const VIDEO_SOURCES = useMemo(() => [
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../assets/videos/nature-loop-1.mp4'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../assets/videos/nature-loop-2.mp4'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../assets/videos/nature-loop-3.mp4'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../assets/videos/nature-loop-4.mp4'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../assets/videos/nature-loop-5.mp4'),
-  ], []);
+  const VIDEO_SOURCES = useMemo(
+    () => [
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("../assets/videos/nature-loop-1.mp4"),
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("../assets/videos/nature-loop-2.mp4"),
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("../assets/videos/nature-loop-3.mp4"),
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("../assets/videos/nature-loop-4.mp4"),
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require("../assets/videos/nature-loop-5.mp4"),
+    ],
+    [],
+  );
   const randomVideoSource = useMemo(
     () => VIDEO_SOURCES[Math.floor(Math.random() * VIDEO_SOURCES.length)],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
-  const videoPlayer = useVideoPlayer(
-    randomVideoSource,
-    (p) => {
-      p.loop = true;
-      p.muted = true;
-      p.playbackRate = 0.6;
-      p.play();
-    },
-  );
+  const videoPlayer = useVideoPlayer(randomVideoSource, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.playbackRate = 0.6;
+    p.play();
+  });
 
   // ── Load group data ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -209,7 +215,10 @@ export default function MindfulPauseScreen() {
 
   // ── Boot animations ──────────────────────────────────────────────────────
   useEffect(() => {
-    contentOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) });
+    contentOpacity.value = withTiming(1, {
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+    });
 
     // Blob 1: slow diagonal drift
     blob1X.value = withRepeat(
@@ -267,7 +276,9 @@ export default function MindfulPauseScreen() {
 
   // ── Animated styles ──────────────────────────────────────────────────────
 
-  const contentStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }));
 
   const blob1Style = useAnimatedStyle(() => ({
     transform: [
@@ -324,7 +335,9 @@ export default function MindfulPauseScreen() {
     if (group) {
       // Dev mock groups skip the real unlock decrement
       const isMock = __DEV__ && !!DEV_MOCK_GROUPS[group.id];
-      const success = isMock ? group.currentUnlocks > 0 : await AppGroupService.incrementUnlock(group.id);
+      const success = isMock
+        ? group.currentUnlocks > 0
+        : await AppGroupService.incrementUnlock(group.id);
       if (!success) {
         setNoUnlocksLeft(true);
         holdProgress.value = withTiming(0, { duration: 400 });
@@ -353,7 +366,7 @@ export default function MindfulPauseScreen() {
     // Slow, meditative breathe pulse
     buttonScale.value = withRepeat(
       withSequence(
-        withTiming(0.90, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0.9, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
         withTiming(1.0, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
       ),
       -1,
@@ -380,7 +393,10 @@ export default function MindfulPauseScreen() {
     if (completedRef.current) return;
     clearHoldTimers();
     setIsHolding(false);
-    holdProgress.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) });
+    holdProgress.value = withTiming(0, {
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+    });
     buttonScale.value = withTiming(1, { duration: 200 });
     setHintVisible(true);
     // Hide hint after 2 s
@@ -400,7 +416,7 @@ export default function MindfulPauseScreen() {
   return (
     <View style={styles.root}>
       {/* ── Nature video background ────────────────────────────────────── */}
-      {Platform.OS === 'ios' && (
+      {Platform.OS === "ios" && (
         <VideoView
           player={videoPlayer}
           style={StyleSheet.absoluteFill}
@@ -413,18 +429,24 @@ export default function MindfulPauseScreen() {
       <View style={styles.videoOverlay} />
 
       {/* ── Liquid blobs ────────────────────────────────────────────────── */}
-      <Animated.View style={[styles.blob, styles.blob1, blob1Style]} pointerEvents="none">
+      <Animated.View
+        style={[styles.blob, styles.blob1, blob1Style]}
+        pointerEvents="none"
+      >
         <LinearGradient
-          colors={['rgba(107,158,143,0.55)', 'rgba(61,130,110,0.30)']}
+          colors={["rgba(107,158,143,0.55)", "rgba(61,130,110,0.30)"]}
           style={styles.blobGradient}
           start={{ x: 0.1, y: 0.1 }}
           end={{ x: 0.9, y: 0.9 }}
         />
       </Animated.View>
 
-      <Animated.View style={[styles.blob, styles.blob2, blob2Style]} pointerEvents="none">
+      <Animated.View
+        style={[styles.blob, styles.blob2, blob2Style]}
+        pointerEvents="none"
+      >
         <LinearGradient
-          colors={['rgba(82,110,160,0.45)', 'rgba(107,158,143,0.25)']}
+          colors={["rgba(82,110,160,0.45)", "rgba(107,158,143,0.25)"]}
           style={styles.blobGradient}
           start={{ x: 0.8, y: 0.2 }}
           end={{ x: 0.2, y: 0.8 }}
@@ -437,21 +459,25 @@ export default function MindfulPauseScreen() {
       {/* ── Content ─────────────────────────────────────────────────────── */}
       <SafeAreaView style={styles.safeArea}>
         <Animated.View style={[styles.contentWrapper, contentStyle]}>
-
           {/* Brand logo */}
           <View style={styles.logoShadow}>
-            <Image source={require('../assets/images/Serenity.png')} style={styles.logo} />
+            <Image
+              source={require("../assets/images/Serenity.png")}
+              style={styles.logo}
+            />
           </View>
 
           {/* Headline */}
           <Text style={styles.headline}>
             {showSuccess
-              ? 'Enjoy your session.'
+              ? "Enjoy your session."
               : showBlockedUI
-              ? (isBlocked ? 'This app is blocked.' : 'No unlocks remaining.')
-              : isHolding
-              ? COUNTDOWN_PHRASES[phraseIndex]
-              : "You're in control."}
+                ? isBlocked
+                  ? "This app is blocked."
+                  : "No unlocks remaining."
+                : isHolding
+                  ? COUNTDOWN_PHRASES[phraseIndex]
+                  : "You're in control."}
           </Text>
 
           {/* Sub-headline / motivational quote */}
@@ -460,14 +486,14 @@ export default function MindfulPauseScreen() {
           ) : (
             <Text style={styles.subheadline}>
               {showSuccess
-                ? 'Your unlock has been recorded. \nBe intentional.'
+                ? "Your unlock has been recorded. \nBe intentional."
                 : isHolding
-                ? 'Keep holding to open the app…'
-                : `${group?.name ?? 'This group'} is gently blocking you.\n${
-                    unlocksRemaining > 0
-                      ? `${unlocksRemaining} unlock${unlocksRemaining !== 1 ? 's' : ''} remaining today.`
-                      : 'No unlocks remaining today.'
-                  }`}
+                  ? "Keep holding to open the app…"
+                  : `${group?.name ?? "This group"} is gently blocking you.\n${
+                      unlocksRemaining > 0
+                        ? `${unlocksRemaining} unlock${unlocksRemaining !== 1 ? "s" : ""} remaining today.`
+                        : "No unlocks remaining today."
+                    }`}
             </Text>
           )}
 
@@ -479,9 +505,15 @@ export default function MindfulPauseScreen() {
                 onPressOut={onPressOut}
                 style={styles.holdButtonPressable}
               >
-                <Animated.View style={[styles.holdButtonOuter, buttonScaleStyle]}>
+                <Animated.View
+                  style={[styles.holdButtonOuter, buttonScaleStyle]}
+                >
                   {/* Background glass circle */}
-                  <BlurView intensity={40} tint="light" style={styles.holdButtonBlur} />
+                  <BlurView
+                    intensity={40}
+                    tint="light"
+                    style={styles.holdButtonBlur}
+                  />
 
                   {/* SVG progress ring */}
                   <Svg
@@ -491,8 +523,8 @@ export default function MindfulPauseScreen() {
                   >
                     {/* Track */}
                     <Circle
-                      cx={(RING_RADIUS + RING_STROKE) + 4}
-                      cy={(RING_RADIUS + RING_STROKE) + 4}
+                      cx={RING_RADIUS + RING_STROKE + 4}
+                      cy={RING_RADIUS + RING_STROKE + 4}
                       r={RING_RADIUS}
                       stroke="rgba(255,255,255,0.15)"
                       strokeWidth={RING_STROKE}
@@ -500,8 +532,8 @@ export default function MindfulPauseScreen() {
                     />
                     {/* Fill */}
                     <AnimatedCircle
-                      cx={(RING_RADIUS + RING_STROKE) + 4}
-                      cy={(RING_RADIUS + RING_STROKE) + 4}
+                      cx={RING_RADIUS + RING_STROKE + 4}
+                      cy={RING_RADIUS + RING_STROKE + 4}
                       r={RING_RADIUS}
                       stroke="rgba(107,200,160,0.95)"
                       strokeWidth={RING_STROKE}
@@ -510,14 +542,14 @@ export default function MindfulPauseScreen() {
                       strokeDasharray={RING_CIRCUMFERENCE}
                       animatedProps={animatedRingProps}
                       // Start at the top
-                      transform={`rotate(-90 ${(RING_RADIUS + RING_STROKE) + 4} ${(RING_RADIUS + RING_STROKE) + 4})`}
+                      transform={`rotate(-90 ${RING_RADIUS + RING_STROKE + 4} ${RING_RADIUS + RING_STROKE + 4})`}
                     />
                   </Svg>
 
                   {/* Center label */}
                   <View style={styles.holdButtonCenter}>
                     <Text style={styles.holdButtonLabel}>
-                      {isHolding ? 'Holding…' : 'Hold'}
+                      {isHolding ? "Holding…" : "Hold"}
                     </Text>
                   </View>
                 </Animated.View>
@@ -537,14 +569,19 @@ export default function MindfulPauseScreen() {
           {/* ── Blocked / no-unlocks close button (unified) ───────────── */}
           {showBlockedUI && !showSuccess && (
             <Pressable
-              style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
+              style={({ pressed }) => [
+                styles.closeButton,
+                pressed && styles.closeButtonPressed,
+              ]}
               onPress={() => {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                Haptics.notificationAsync(
+                  Haptics.NotificationFeedbackType.Warning,
+                );
                 router.back();
               }}
             >
               <Text style={styles.closeButtonText}>
-                {isBlocked ? 'I understand, close' : 'Got it, close'}
+                {isBlocked ? "I understand, close" : "Got it, close"}
               </Text>
             </Pressable>
           )}
@@ -562,31 +599,31 @@ export default function MindfulPauseScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0D1A14', // deep forest dark fallback
+    backgroundColor: "#0D1A14", // deep forest dark fallback
   },
 
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8,20,14,0.55)',
+    backgroundColor: "rgba(8,20,14,0.55)",
   },
 
   // ── Liquid blobs ──────────────────────────────────────────────────────────
   blob: {
-    position: 'absolute',
+    position: "absolute",
     borderRadius: 9999,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   blob1: {
-    width: W * 0.80,
-    height: W * 0.80,
+    width: W * 0.8,
+    height: W * 0.8,
     top: -W * 0.15,
-    left: -W * 0.20,
+    left: -W * 0.2,
   },
   blob2: {
     width: W * 0.75,
     height: W * 0.75,
-    bottom: -W * 0.10,
-    right: -W * 0.20,
+    bottom: -W * 0.1,
+    right: -W * 0.2,
   },
   blobGradient: {
     flex: 1,
@@ -598,15 +635,15 @@ const styles = StyleSheet.create({
   },
   contentWrapper: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 32,
     gap: 16,
   },
 
   logoShadow: {
     marginBottom: 4,
-    shadowColor: 'rgba(0,0,0,0.4)',
+    shadowColor: "rgba(0,0,0,0.4)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 1,
     shadowRadius: 12,
@@ -616,75 +653,75 @@ const styles = StyleSheet.create({
   logo: {
     width: 220,
     height: 100,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
 
   headline: {
-    fontFamily: 'Lora-SemiBold',
+    fontFamily: "Lora-SemiBold",
     fontSize: 30,
-    color: '#FFFFFF',
-    textAlign: 'center',
+    color: "#FFFFFF",
+    textAlign: "center",
     lineHeight: 38,
     letterSpacing: 0.2,
   },
 
   subheadline: {
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
     fontSize: 15,
-    color: 'rgba(255,255,255,0.68)',
-    textAlign: 'center',
+    color: "rgba(255,255,255,0.68)",
+    textAlign: "center",
     lineHeight: 22,
     paddingHorizontal: 8,
   },
 
   // ── Hold button ───────────────────────────────────────────────────────────
   buttonArea: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
     gap: 14,
   },
 
   holdButtonPressable: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   holdButtonOuter: {
     width: (RING_RADIUS + RING_STROKE) * 2 + 24,
     height: (RING_RADIUS + RING_STROKE) * 2 + 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   holdButtonBlur: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 9999,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: "rgba(255,255,255,0.18)",
   },
 
   svgRing: {
-    position: 'absolute',
+    position: "absolute",
   },
 
   holdButtonCenter: {
-    alignItems: 'center',
+    alignItems: "center",
   },
 
   holdButtonLabel: {
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
     fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.85)",
     letterSpacing: 0.5,
   },
 
   hint: {
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
     fontSize: 13,
-    color: 'rgba(255,255,255,0.50)',
-    textAlign: 'center',
+    color: "rgba(255,255,255,0.50)",
+    textAlign: "center",
   },
 
   // ── Close / dismissed button ──────────────────────────────────────────────
@@ -694,27 +731,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     borderRadius: 9999,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   closeButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: "rgba(255,255,255,0.16)",
   },
   closeButtonText: {
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
     fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.88)',
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.88)",
     letterSpacing: 0.3,
   },
 
   // ── Motivational quote (blocked / no-unlocks) ───────────────────────────
   quote: {
-    fontFamily: 'Lora',
-    fontStyle: 'italic',
+    fontFamily: "Lora",
+    fontStyle: "italic",
     fontSize: 15,
-    color: 'rgba(255,255,255,0.72)',
-    textAlign: 'center',
+    color: "rgba(255,255,255,0.72)",
+    textAlign: "center",
     lineHeight: 24,
     paddingHorizontal: 16,
     marginTop: 4,
@@ -722,11 +759,11 @@ const styles = StyleSheet.create({
 
   // ── Brand label ──────────────────────────────────────────────────────────
   brandLabel: {
-    fontFamily: 'Lora',
+    fontFamily: "Lora",
     fontSize: 13,
-    color: 'rgba(255,255,255,0.28)',
+    color: "rgba(255,255,255,0.28)",
     letterSpacing: 2.5,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginTop: 8,
   },
 });

@@ -1,31 +1,32 @@
-import { OnboardingHeader } from '@/components/OnboardingHeader';
-import { Button } from '@/components/ui';
-import { spacing } from '@/constants';
-import { FONTS } from '@/constants/typography';
-import { useThemedColors, useThemedStyles } from '@/hooks/useThemedStyles';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { OnboardingHeader } from "@/components/OnboardingHeader";
+import { Button } from "@/components/ui";
+import { spacing } from "@/constants";
+import { FONTS } from "@/constants/typography";
+import { useThemedColors, useThemedStyles } from "@/hooks/useThemedStyles";
+import { router } from "expo-router";
+import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Platform,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+    ActivityIndicator,
+    Platform,
+    StatusBar,
+    StyleSheet,
+    Text,
+    View
+} from "react-native";
 import {
-  AuthorizationStatus,
-  DeviceActivitySelectionView,
-  getAuthorizationStatus,
-  requestAuthorization,
-} from 'react-native-device-activity';
-import { SafeAreaView } from 'react-native-safe-area-context';
+    AuthorizationStatus,
+    DeviceActivitySelectionView,
+    getAuthorizationStatus,
+    requestAuthorization,
+} from "react-native-device-activity";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SelectAppsScreen() {
   const theme = useThemedColors();
   const { isDark } = useThemedStyles();
-  const [familyActivitySelection, setFamilyActivitySelection] = useState<string | null>(null);
+  const [familyActivitySelection, setFamilyActivitySelection] = useState<
+    string | null
+  >(null);
   const [applicationCount, setApplicationCount] = useState(0);
   const [categoryCount, setCategoryCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -33,7 +34,7 @@ export default function SelectAppsScreen() {
 
   // Request authorization on mount
   React.useEffect(() => {
-    if (Platform.OS !== 'ios') return;
+    if (Platform.OS !== "ios") return;
     checkAndRequestAuth();
   }, []);
 
@@ -53,11 +54,11 @@ export default function SelectAppsScreen() {
     // notDetermined — request it
     setLoading(true);
     try {
-      await requestAuthorization('individual');
+      await requestAuthorization("individual");
       const newStatus = getAuthorizationStatus();
       setAuthorized(newStatus === AuthorizationStatus.approved);
     } catch (error: any) {
-      console.error('Authorization error:', error);
+      console.error("Authorization error:", error);
       setAuthorized(false);
     } finally {
       setLoading(false);
@@ -77,9 +78,9 @@ export default function SelectAppsScreen() {
 
   const handleContinue = () => {
     router.push({
-      pathname: '/create-group/configure',
+      pathname: "/create-group/configure",
       params: {
-        familyActivitySelection: familyActivitySelection ?? '',
+        familyActivitySelection: familyActivitySelection ?? "",
         applicationCount: applicationCount.toString(),
         categoryCount: categoryCount.toString(),
       },
@@ -88,7 +89,7 @@ export default function SelectAppsScreen() {
 
   const totalSelected = applicationCount + categoryCount;
 
-  if (Platform.OS !== 'ios') {
+  if (Platform.OS !== "ios") {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Text style={{ color: theme.textPrimary, padding: spacing.lg }}>
@@ -100,7 +101,7 @@ export default function SelectAppsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <StatusBar barStyle={theme.statusBar} />
 
         <OnboardingHeader
@@ -139,10 +140,20 @@ export default function SelectAppsScreen() {
               ]}
             >
               <Text style={styles.permissionDeniedEmoji}>🔒</Text>
-              <Text style={[styles.permissionDeniedTitle, { color: theme.textPrimary }]}>
+              <Text
+                style={[
+                  styles.permissionDeniedTitle,
+                  { color: theme.textPrimary },
+                ]}
+              >
                 Screen Time permission required
               </Text>
-              <Text style={[styles.permissionDeniedDescription, { color: theme.textSecondary }]}>
+              <Text
+                style={[
+                  styles.permissionDeniedDescription,
+                  { color: theme.textSecondary },
+                ]}
+              >
                 Enable it in Settings → Screen Time → Serenity
               </Text>
               <Button
@@ -162,7 +173,7 @@ export default function SelectAppsScreen() {
             familyActivitySelection={familyActivitySelection}
             headerText="Select apps to limit"
             footerText="Your selection is private and stays on-device"
-            appearance={isDark ? 'dark' : 'light'}
+            appearance={isDark ? "dark" : "light"}
           />
         )}
 
@@ -174,10 +185,14 @@ export default function SelectAppsScreen() {
           ]}
         >
           {totalSelected > 0 && (
-            <Text style={[styles.selectionSummary, { color: theme.textSecondary }]}>
-              {applicationCount > 0 && `${applicationCount} app${applicationCount !== 1 ? 's' : ''}`}
-              {applicationCount > 0 && categoryCount > 0 && '  ·  '}
-              {categoryCount > 0 && `${categoryCount} categor${categoryCount !== 1 ? 'ies' : 'y'}`}
+            <Text
+              style={[styles.selectionSummary, { color: theme.textSecondary }]}
+            >
+              {applicationCount > 0 &&
+                `${applicationCount} app${applicationCount !== 1 ? "s" : ""}`}
+              {applicationCount > 0 && categoryCount > 0 && "  ·  "}
+              {categoryCount > 0 &&
+                `${categoryCount} categor${categoryCount !== 1 ? "ies" : "y"}`}
             </Text>
           )}
           <Button
@@ -207,25 +222,33 @@ const styles = StyleSheet.create({
   },
   centeredState: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: spacing.lg,
   },
-  loadingText: { fontSize: 16, fontWeight: '500', marginTop: spacing.md },
+  loadingText: { fontSize: 16, fontWeight: "500", marginTop: spacing.md },
   permissionDeniedContainer: {
     borderRadius: 16,
     borderWidth: 1,
     padding: spacing.lg,
     gap: spacing.sm,
-    alignItems: 'center',
-    width: '100%',
+    alignItems: "center",
+    width: "100%",
   },
   permissionDeniedEmoji: { fontSize: 48, marginBottom: spacing.xs },
-  permissionDeniedTitle: { fontSize: 18, fontWeight: '600', textAlign: 'center' },
-  permissionDeniedDescription: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  permissionDeniedTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  permissionDeniedDescription: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+  },
   selectionSummary: {
     fontSize: 13,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: spacing.sm,
   },
   actions: {

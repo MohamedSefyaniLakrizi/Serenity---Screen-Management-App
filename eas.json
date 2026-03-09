@@ -7,18 +7,21 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": {
-        "credentialsSource": "local"
+      "cache": {
+        "disabled": true
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "cache": {
+        "disabled": true
+      }
     },
     "production": {
       "distribution": "internal",
       "autoIncrement": true,
-      "ios": {
-        "credentialsSource": "local"
+      "cache": {
+        "disabled": true
       }
     }
   },

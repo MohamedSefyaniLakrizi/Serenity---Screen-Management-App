@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "appleTeamId": "L53JAUN9Z8",
+      "appleTeamId": "TL9UW7M88J",
       "bundleIdentifier": "com.msl.serenity",
       "buildNumber": "1.0.0",
       "infoPlist": {
@@ -20,20 +20,6 @@
         "com.apple.developer.family-controls": true,
         "com.apple.security.application-groups": ["group.com.msl.serenity"]
       }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
@@ -52,7 +38,7 @@
       [
         "react-native-device-activity",
         {
-          "appleTeamId": "L53JAUN9Z8",
+          "appleTeamId": "TL9UW7M88J",
           "appGroup": "group.com.msl.serenity"
         }
       ],
@@ -73,7 +59,6 @@
                   "bundleIdentifier": "com.msl.serenity.ShieldConfiguration",
                   "targetName": "ShieldConfiguration",
                   "entitlements": {
-                    "com.apple.developer.family-controls": true,
                     "com.apple.security.application-groups": [
                       "group.com.msl.serenity"
                     ]
@@ -83,7 +68,6 @@
                   "bundleIdentifier": "com.msl.serenity.ShieldAction",
                   "targetName": "ShieldAction",
                   "entitlements": {
-                    "com.apple.developer.family-controls": true,
                     "com.apple.security.application-groups": [
                       "group.com.msl.serenity"
                     ]
@@ -93,7 +77,6 @@
                   "bundleIdentifier": "com.msl.serenity.ActivityMonitorExtension",
                   "targetName": "ActivityMonitorExtension",
                   "entitlements": {
-                    "com.apple.developer.family-controls": true,
                     "com.apple.security.application-groups": [
                       "group.com.msl.serenity"
                     ]

@@ -1,17 +1,28 @@
 import { Card } from "@/components/ui";
 import { colors, spacing, typography } from "@/constants";
-import { AppGroup, AppGroupSchedule, AppGroupService } from "@/services/appGroups";
+import {
+    AppGroup,
+    AppGroupSchedule,
+    AppGroupService,
+} from "@/services/appGroups";
 import { useRouter } from "expo-router";
-import { CalendarDays, Clock, Edit2, Hash, Plus, Trash2 } from "lucide-react-native";
+import {
+    CalendarDays,
+    Clock,
+    Edit2,
+    Hash,
+    Plus,
+    Trash2,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function AppsScreen() {
@@ -62,7 +73,7 @@ export default function AppsScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -76,22 +87,37 @@ export default function AppsScreen() {
   };
 
   const DAY_LABELS: Record<string, string> = {
-    mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'Sa', sun: 'Su',
+    mon: "M",
+    tue: "T",
+    wed: "W",
+    thu: "T",
+    fri: "F",
+    sat: "Sa",
+    sun: "Su",
   };
-  const ALL_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const ALL_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
   const formatSchedule = (schedule?: AppGroupSchedule): string => {
-    if (!schedule || schedule.alwaysOn) return 'Always On';
-    const [sh, sm] = schedule.startTime.split(':').map(Number);
-    const [eh, em] = schedule.endTime.split(':').map(Number);
+    if (!schedule || schedule.alwaysOn) return "Always On";
+    const [sh, sm] = schedule.startTime.split(":").map(Number);
+    const [eh, em] = schedule.endTime.split(":").map(Number);
     const fmt = (h: number, m: number) => {
-      const s = h < 12 ? 'AM' : 'PM';
-      return `${h % 12 === 0 ? 12 : h % 12}:${m.toString().padStart(2, '0')} ${s}`;
+      const s = h < 12 ? "AM" : "PM";
+      return `${h % 12 === 0 ? 12 : h % 12}:${m.toString().padStart(2, "0")} ${s}`;
     };
     const timePart = `${fmt(sh, sm)} – ${fmt(eh, em)}`;
     const isAllDays = ALL_DAYS.every((d) => schedule.days.includes(d));
-    const isWeekdays = ['mon','tue','wed','thu','fri'].every((d) => schedule.days.includes(d)) && !schedule.days.includes('sat') && !schedule.days.includes('sun');
-    const dayPart = isAllDays ? 'Every day' : isWeekdays ? 'Weekdays' : schedule.days.map((d) => DAY_LABELS[d]).join('');
+    const isWeekdays =
+      ["mon", "tue", "wed", "thu", "fri"].every((d) =>
+        schedule.days.includes(d),
+      ) &&
+      !schedule.days.includes("sat") &&
+      !schedule.days.includes("sun");
+    const dayPart = isAllDays
+      ? "Every day"
+      : isWeekdays
+        ? "Weekdays"
+        : schedule.days.map((d) => DAY_LABELS[d]).join("");
     return `${timePart} · ${dayPart}`;
   };
 
@@ -106,9 +132,11 @@ export default function AppsScreen() {
             <Text style={styles.groupName}>{group.name}</Text>
             <Text style={styles.appCount}>
               {(group.applicationCount ?? group.apps.length) > 0
-                ? `${group.applicationCount ?? group.apps.length} app${(group.applicationCount ?? group.apps.length) === 1 ? '' : 's'}`
-                : 'No apps selected'}
-              {group.categoryCount ? `  ·  ${group.categoryCount} categor${group.categoryCount === 1 ? 'y' : 'ies'}` : ''}
+                ? `${group.applicationCount ?? group.apps.length} app${(group.applicationCount ?? group.apps.length) === 1 ? "" : "s"}`
+                : "No apps selected"}
+              {group.categoryCount
+                ? `  ·  ${group.categoryCount} categor${group.categoryCount === 1 ? "y" : "ies"}`
+                : ""}
             </Text>
           </View>
           <View style={styles.headerActions}>
@@ -145,7 +173,9 @@ export default function AppsScreen() {
             <Clock size={16} color={colors.textSecondary} />
             <Text style={styles.settingLabel}>Mode:</Text>
             <Text style={styles.settingValue}>
-              {group.isBlocked ? "Fully Blocked" : formatTime(group.sessionLength)}
+              {group.isBlocked
+                ? "Fully Blocked"
+                : formatTime(group.sessionLength)}
             </Text>
           </View>
 
@@ -167,7 +197,10 @@ export default function AppsScreen() {
           <View style={styles.settingItem}>
             <CalendarDays size={16} color={colors.textSecondary} />
             <Text style={styles.settingLabel}>When:</Text>
-            <Text style={[styles.settingValue, styles.scheduleValue]} numberOfLines={1}>
+            <Text
+              style={[styles.settingValue, styles.scheduleValue]}
+              numberOfLines={1}
+            >
               {formatSchedule(group.schedule)}
             </Text>
           </View>
@@ -218,7 +251,7 @@ export default function AppsScreen() {
 
         {/* Create Group Button */}
         <TouchableOpacity
-          onPress={() => router.push('/create-group' as any)}
+          onPress={() => router.push("/create-group" as any)}
           style={styles.createButton}
         >
           <Card style={styles.createButtonCard}>
@@ -332,7 +365,7 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   headerActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.xs,
   },
   iconButton: {
