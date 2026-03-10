@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   },
   upgradeBannerTitle: {
     fontSize: 15,
-    fontWeight: "600" as const,
+    fontWeight: typography.semibold,
     color: "#fff",
     marginBottom: 2,
   },

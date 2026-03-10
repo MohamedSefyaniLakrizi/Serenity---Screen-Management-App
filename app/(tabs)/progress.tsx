@@ -1,4 +1,4 @@
-import { spacing } from "@/constants";
+import { colors, spacing } from "@/constants";
 import { FONTS } from "@/constants/typography";
 import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useThemedColors } from "@/hooks/useThemedStyles";
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
 
   // Upgrade banner
   upgradeBanner: {
-    backgroundColor: '#E07A5F',
+    backgroundColor: colors.primary,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
