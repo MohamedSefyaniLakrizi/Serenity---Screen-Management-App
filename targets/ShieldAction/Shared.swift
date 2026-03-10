@@ -633,7 +633,8 @@ func getActivitySelectionPrefixedConfigFromUserDefaults(
     keyPrefix: keyPrefix,
     applicationToken: applicationToken,
     webDomainToken: webDomainToken,
-    categoryToken: categoryToken
+    categoryToken: categoryToken,
+    onlyFamilySelectionIdsContainingMonitoredActivityNames: false
   ) {
     if let config = userDefaults?.dictionary(forKey: configKey) {
       return config
