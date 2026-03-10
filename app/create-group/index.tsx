@@ -2,6 +2,7 @@ import { OnboardingHeader } from "@/components/OnboardingHeader";
 import { Button } from "@/components/ui";
 import { spacing } from "@/constants";
 import { FONTS } from "@/constants/typography";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useThemedColors, useThemedStyles } from "@/hooks/useThemedStyles";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -21,9 +22,12 @@ import {
 } from "react-native-device-activity";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const FREE_APP_LIMIT = 3;
+
 export default function SelectAppsScreen() {
   const theme = useThemedColors();
   const { isDark } = useThemedStyles();
+  const { isPro, showPaywall } = useRevenueCat();
   const [familyActivitySelection, setFamilyActivitySelection] = useState<
     string | null
   >(null);
@@ -76,7 +80,13 @@ export default function SelectAppsScreen() {
     setCategoryCount(cats ?? 0);
   };
 
-  const handleContinue = () => {
+  const totalSelected = applicationCount + categoryCount;
+
+  const handleContinue = async () => {
+    if (!isPro && totalSelected > FREE_APP_LIMIT) {
+      await showPaywall();
+      return;
+    }
     router.push({
       pathname: "/create-group/configure",
       params: {
@@ -86,8 +96,6 @@ export default function SelectAppsScreen() {
       },
     });
   };
-
-  const totalSelected = applicationCount + categoryCount;
 
   if (Platform.OS !== "ios") {
     return (
@@ -184,6 +192,11 @@ export default function SelectAppsScreen() {
             { backgroundColor: theme.background, borderTopColor: theme.border },
           ]}
         >
+          {!isPro && totalSelected > FREE_APP_LIMIT && (
+            <Text style={[styles.limitWarning, { color: theme.primary }]}>
+              Free plan allows up to {FREE_APP_LIMIT} apps. Upgrade to Pro for unlimited.
+            </Text>
+          )}
           {totalSelected > 0 && (
             <Text
               style={[styles.selectionSummary, { color: theme.textSecondary }]}
@@ -248,6 +261,12 @@ const styles = StyleSheet.create({
   },
   selectionSummary: {
     fontSize: 13,
+    textAlign: "center",
+    marginBottom: spacing.sm,
+  },
+  limitWarning: {
+    fontSize: 13,
+    fontFamily: FONTS.interMedium,
     textAlign: "center",
     marginBottom: spacing.sm,
   },

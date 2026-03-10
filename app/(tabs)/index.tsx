@@ -1,11 +1,13 @@
 import { Card } from "@/components/ui";
 import { colors, spacing, typography } from "@/constants";
 import { FONTS } from "@/constants/typography";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useThemedColors } from "@/hooks/useThemedStyles";
 import { AppGroup, AppGroupService } from "@/services/appGroups";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   ChevronRight,
+  Crown,
   Folder,
   Plus,
   Smartphone,
@@ -23,9 +25,12 @@ import {
   View,
 } from "react-native";
 
+const FREE_GROUP_LIMIT = 1;
+
 export default function AppsScreen() {
   const router = useRouter();
   const themedColors = useThemedColors();
+  const { isPro, showPaywall } = useRevenueCat();
   const [appGroups, setAppGroups] = useState<AppGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,6 +59,14 @@ export default function AppsScreen() {
     setRefreshing(true);
     await loadAppGroups();
     setRefreshing(false);
+  };
+
+  const handleCreateGroup = async () => {
+    if (!isPro && appGroups.length >= FREE_GROUP_LIMIT) {
+      await showPaywall();
+      return;
+    }
+    router.push("/create-group");
   };
 
   const handleDeleteGroup = (groupId: string, groupName: string) => {
@@ -206,11 +219,27 @@ export default function AppsScreen() {
           </Text>
         </View>
 
+        {/* Upgrade Banner for free users */}
+        {!isPro && (
+          <TouchableOpacity
+            onPress={() => showPaywall()}
+            style={styles.upgradeBanner}
+            activeOpacity={0.8}
+          >
+            <View style={styles.upgradeBannerContent}>
+              <Crown size={20} color="#fff" />
+              <View style={styles.upgradeBannerText}>
+                <Text style={styles.upgradeBannerTitle}>Upgrade to Serenity Pro</Text>
+                <Text style={styles.upgradeBannerSubtitle}>Unlimited groups, flexible blocking & more</Text>
+              </View>
+              <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Create Group Button */}
         <TouchableOpacity
-          onPress={() => {
-            router.push("/create-group");
-          }}
+          onPress={handleCreateGroup}
           style={styles.createButton}
         >
           <Card style={styles.createButtonCard}>
@@ -268,6 +297,31 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.lg,
+  },
+  upgradeBanner: {
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  upgradeBannerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  upgradeBannerText: {
+    flex: 1,
+  },
+  upgradeBannerTitle: {
+    fontSize: 15,
+    fontFamily: FONTS.interSemiBold,
+    color: "#fff",
+    marginBottom: 2,
+  },
+  upgradeBannerSubtitle: {
+    fontSize: 12,
+    fontFamily: FONTS.interRegular,
+    color: "rgba(255,255,255,0.8)",
   },
   title: {
     fontSize: typography.h1,
