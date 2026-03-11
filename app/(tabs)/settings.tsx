@@ -198,6 +198,24 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
+        {/* Upgrade Banner for free users */}
+        {!isPro && (
+          <TouchableOpacity
+            onPress={handleUpgrade}
+            style={styles.upgradeBanner}
+            activeOpacity={0.8}
+          >
+            <View style={styles.upgradeBannerContent}>
+              <Crown size={20} color="#fff" />
+              <View style={styles.upgradeBannerText}>
+                <Text style={styles.upgradeBannerTitle}>Upgrade to Serenity Pro</Text>
+                <Text style={styles.upgradeBannerSubtitle}>Unlimited groups, flexible blocking & more</Text>
+              </View>
+              <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Theme Selection */}
         <Card style={styles.section}>
           <Text
@@ -610,6 +628,30 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.xl,
+  },
+  upgradeBanner: {
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  upgradeBannerContent: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: spacing.sm,
+  },
+  upgradeBannerText: {
+    flex: 1,
+  },
+  upgradeBannerTitle: {
+    fontSize: 15,
+    fontWeight: typography.semibold,
+    color: "#fff",
+    marginBottom: 2,
+  },
+  upgradeBannerSubtitle: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
   },
   title: {
     fontSize: typography.h1,

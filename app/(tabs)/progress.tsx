@@ -1,10 +1,11 @@
-import { spacing } from "@/constants";
+import { colors, spacing } from "@/constants";
 import { FONTS } from "@/constants/typography";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useThemedColors } from "@/hooks/useThemedStyles";
 import { useAppStore } from "@/store/appStore";
-import { Award, Flame, Target } from "lucide-react-native";
+import { Award, ChevronRight, Crown, Flame, Target } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Platform, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActivityReportView } from "activity-report";
 
@@ -12,6 +13,7 @@ import { ActivityReportView } from "activity-report";
 
 export default function ProgressScreen() {
   const theme = useThemedColors();
+  const { isPro, showPaywall } = useRevenueCat();
   const { streakData, userPreferences, loadFromStorage } = useAppStore();
   const [period, setPeriod] = useState<"day" | "week">("week");
 
@@ -52,6 +54,24 @@ export default function ProgressScreen() {
             {dateLabel}
           </Text>
         </View>
+
+        {/* Upgrade Banner for free users */}
+        {!isPro && (
+          <TouchableOpacity
+            onPress={() => showPaywall()}
+            style={[styles.upgradeBanner, { marginHorizontal: spacing.lg }]}
+            activeOpacity={0.8}
+          >
+            <View style={styles.upgradeBannerContent}>
+              <Crown size={20} color="#fff" />
+              <View style={styles.upgradeBannerText}>
+                <Text style={styles.upgradeBannerTitle}>Upgrade to Serenity Pro</Text>
+                <Text style={styles.upgradeBannerSubtitle}>Unlimited groups, flexible blocking & more</Text>
+              </View>
+              <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* ── Period toggle ── */}
         <View style={[styles.periodToggle, { marginHorizontal: spacing.lg }]}>
@@ -243,6 +263,33 @@ const styles = StyleSheet.create({
   dateLabel: {
     fontSize: 14,
     fontFamily: FONTS.interRegular,
+  },
+
+  // Upgrade banner
+  upgradeBanner: {
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  upgradeBannerContent: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 8,
+  },
+  upgradeBannerText: {
+    flex: 1,
+  },
+  upgradeBannerTitle: {
+    fontSize: 15,
+    fontFamily: FONTS.interSemiBold,
+    color: "#fff",
+    marginBottom: 2,
+  },
+  upgradeBannerSubtitle: {
+    fontSize: 12,
+    fontFamily: FONTS.interRegular,
+    color: "rgba(255,255,255,0.8)",
   },
 
   // Period toggle

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui";
-import { spacing } from "@/constants";
+import { colors, spacing } from "@/constants";
 import { FONTS } from "@/constants/typography";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useThemedColors } from "@/hooks/useThemedStyles";
 import {
   AppGroup,
@@ -13,6 +14,7 @@ import {
   Briefcase,
   ChevronLeft,
   Clock,
+  Crown,
   Folder,
   Globe,
   Lock,
@@ -98,6 +100,7 @@ function formatTimeDisplay(hhmm: string): string {
 export default function EditGroupScreen() {
   const theme = useThemedColors();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { isPro, showPaywall } = useRevenueCat();
 
   const [group, setGroup] = useState<AppGroup | null>(null);
   const [loading, setLoading] = useState(true);
@@ -496,28 +499,42 @@ export default function EditGroupScreen() {
                   },
                   blockMode === "unlocks" && styles.modeCardSelected,
                 ]}
-                onPress={() => setBlockMode("unlocks")}
+                onPress={async () => {
+                  if (!isPro) {
+                    await showPaywall();
+                    return;
+                  }
+                  setBlockMode("unlocks");
+                }}
                 activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.modeIcon,
-                    {
-                      backgroundColor:
+                <View style={styles.modeCardHeader}>
+                  <View
+                    style={[
+                      styles.modeIcon,
+                      {
+                        backgroundColor:
+                          blockMode === "unlocks"
+                            ? theme.primaryLight
+                            : theme.surfaceSecondary,
+                      },
+                    ]}
+                  >
+                    <Unlock
+                      size={24}
+                      color={
                         blockMode === "unlocks"
-                          ? theme.primaryLight
-                          : theme.surfaceSecondary,
-                    },
-                  ]}
-                >
-                  <Unlock
-                    size={24}
-                    color={
-                      blockMode === "unlocks"
-                        ? theme.primary
-                        : theme.textSecondary
-                    }
-                  />
+                          ? theme.primary
+                          : theme.textSecondary
+                      }
+                    />
+                  </View>
+                  {!isPro && (
+                    <View style={styles.proBadge}>
+                      <Crown size={10} color="#fff" />
+                      <Text style={styles.proBadgeText}>PRO</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
                   Limited Unlocks
@@ -525,7 +542,7 @@ export default function EditGroupScreen() {
                 <Text
                   style={[styles.modeSubtitle, { color: theme.textSecondary }]}
                 >
-                  Allow a set number of unlocks per day
+                  {!isPro ? "Premium feature" : "Allow a set number of unlocks per day"}
                 </Text>
               </TouchableOpacity>
 
@@ -1089,6 +1106,25 @@ const styles = StyleSheet.create({
   },
   modeCardSelected: {
     borderWidth: 2,
+  },
+  modeCardHeader: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "flex-start" as const,
+  },
+  proBadge: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 3,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  proBadgeText: {
+    fontSize: 10,
+    fontFamily: FONTS.interSemiBold,
+    color: "#fff",
   },
   modeIcon: {
     width: 40,

@@ -1,11 +1,12 @@
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Button } from '@/components/ui';
-import { spacing } from '@/constants';
+import { colors, spacing } from '@/constants';
 import { FONTS } from '@/constants/typography';
+import { useRevenueCat } from '@/hooks/useRevenueCat';
 import { useThemedColors } from '@/hooks/useThemedStyles';
 import { AppGroupService } from '@/services/appGroups';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Lock, Unlock } from 'lucide-react-native';
+import { Crown, Lock, Unlock } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
     Alert,
@@ -22,8 +23,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function ConfigureGroupScreen() {
   const theme = useThemedColors();
   const params = useLocalSearchParams();
+  const { isPro, showPaywall } = useRevenueCat();
   const [groupName, setGroupName] = useState('');
-  const [blockMode, setBlockMode] = useState<'unlocks' | 'blocked'>('unlocks');
+  const [blockMode, setBlockMode] = useState<'unlocks' | 'blocked'>('blocked');
 
   // Parse params from app selection screen
   const familyActivitySelection = (params.familyActivitySelection as string) ?? '';
@@ -70,6 +72,14 @@ export default function ConfigureGroupScreen() {
         },
       });
     }
+  };
+
+  const handleUnlocksPress = async () => {
+    if (!isPro) {
+      await showPaywall();
+      return;
+    }
+    setBlockMode('unlocks');
   };
 
   return (
@@ -138,30 +148,38 @@ export default function ConfigureGroupScreen() {
                     },
                     blockMode === 'unlocks' && styles.modeCardSelected,
                   ]}
-                  onPress={() => setBlockMode('unlocks')}
+                  onPress={handleUnlocksPress}
                   activeOpacity={0.7}
                 >
-                  <View
-                    style={[
-                      styles.modeIcon,
-                      {
-                        backgroundColor:
-                          blockMode === 'unlocks'
-                            ? theme.primaryLight
-                            : theme.surfaceSecondary,
-                      },
-                    ]}
-                  >
-                    <Unlock
-                      size={24}
-                      color={blockMode === 'unlocks' ? theme.primary : theme.textSecondary}
-                    />
+                  <View style={styles.modeCardHeader}>
+                    <View
+                      style={[
+                        styles.modeIcon,
+                        {
+                          backgroundColor:
+                            blockMode === 'unlocks'
+                              ? theme.primaryLight
+                              : theme.surfaceSecondary,
+                        },
+                      ]}
+                    >
+                      <Unlock
+                        size={24}
+                        color={blockMode === 'unlocks' ? theme.primary : theme.textSecondary}
+                      />
+                    </View>
+                    {!isPro && (
+                      <View style={styles.proBadge}>
+                        <Crown size={10} color="#fff" />
+                        <Text style={styles.proBadgeText}>PRO</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
                     Limited Unlocks
                   </Text>
                   <Text style={[styles.modeSubtitle, { color: theme.textSecondary }]}>
-                    Allow a set number of unlocks per day
+                    {!isPro ? 'Premium feature' : 'Allow a set number of unlocks per day'}
                   </Text>
                 </TouchableOpacity>
 
@@ -283,6 +301,25 @@ const styles = StyleSheet.create({
   },
   modeCardSelected: {
     borderWidth: 2,
+  },
+  modeCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  proBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  proBadgeText: {
+    fontSize: 10,
+    fontFamily: FONTS.interSemiBold,
+    color: '#fff',
   },
   modeIcon: {
     width: 40,
