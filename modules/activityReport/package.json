@@ -1,0 +1,8 @@
+{
+  "name": "activity-report",
+  "version": "1.0.0",
+  "description": "Native DeviceActivityReport view for the Serenity analytics tab",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true
+}
