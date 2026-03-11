@@ -56,6 +56,16 @@
             "ios": {
               "appExtensions": [
                 {
+                  "bundleIdentifier": "com.msl.serenity.DeviceActivityReport",
+                  "targetName": "DeviceActivityReport",
+                  "entitlements": {
+                    "com.apple.developer.family-controls": true,
+                    "com.apple.security.application-groups": [
+                      "group.com.msl.serenity"
+                    ]
+                  }
+                },
+                {
                   "bundleIdentifier": "com.msl.serenity.ShieldConfiguration",
                   "targetName": "ShieldConfiguration",
                   "entitlements": {

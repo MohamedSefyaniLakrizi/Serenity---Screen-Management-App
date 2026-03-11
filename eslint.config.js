@@ -7,4 +7,12 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    // activity-report is a local Expo native module; its TypeScript types use
+    // native-only APIs that eslint-plugin-import cannot fully parse at lint time.
+    rules: {
+      'import/namespace': ['error', { allowComputed: true }],
+    },
+    files: ['app/(tabs)/progress.tsx'],
+  },
 ]);
