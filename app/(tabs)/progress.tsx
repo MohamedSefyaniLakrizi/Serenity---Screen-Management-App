@@ -3,15 +3,9 @@ import { FONTS } from "@/constants/typography";
 import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useThemedColors } from "@/hooks/useThemedStyles";
 import { useAppStore } from "@/store/appStore";
-<<<<<<< HEAD
-import { Award, ChevronRight, Clock, Crown, Flame, Target } from "lucide-react-native";
+import { Award, ChevronRight, Crown, Flame, Target } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Platform, Dimensions, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-=======
-import { Award, Flame, Target } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { Platform, StatusBar, StyleSheet, Text, View } from "react-native";
->>>>>>> origin/main
+import { Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActivityReportView } from "activity-report";
 
@@ -79,47 +73,6 @@ export default function ProgressScreen() {
           </TouchableOpacity>
         )}
 
-<<<<<<< HEAD
-        {/* Upgrade Banner for free users */}
-        {!isPro && (
-          <TouchableOpacity
-            onPress={() => showPaywall()}
-            style={[styles.upgradeBanner, { marginHorizontal: spacing.lg }]}
-            activeOpacity={0.8}
-          >
-            <View style={styles.upgradeBannerContent}>
-              <Crown size={20} color="#fff" />
-              <View style={styles.upgradeBannerText}>
-                <Text style={styles.upgradeBannerTitle}>Upgrade to Serenity Pro</Text>
-                <Text style={styles.upgradeBannerSubtitle}>Unlimited groups, flexible blocking & more</Text>
-              </View>
-              <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* ── Today at a Glance ── */}
-        <View style={[styles.glanceCard, { backgroundColor: theme.primary, marginHorizontal: spacing.lg }]}>
-          <View style={styles.glanceTop}>
-            <View>
-              <Text style={styles.glanceLabel}>Today's Screen Time</Text>
-              <Text style={styles.glanceTime}>{formatTime(todayMinutes)}</Text>
-            </View>
-          </View>
-
-          {/* Goal bar */}
-          <View style={styles.goalBarWrap}>
-            <View style={[styles.goalBarTrack, { backgroundColor: "rgba(255,255,255,0.25)" }]}>
-              <View style={[styles.goalBarFill, { width: `${goalPct * 100}%`, backgroundColor: "#fff" }]} />
-            </View>
-            <View style={styles.goalBarLabels}>
-              <View style={styles.goalBarLabelLeft}>
-                <Target size={12} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.goalBarText}>Daily goal: {formatTime(dailyLimit)}</Text>
-              </View>
-              <Text style={styles.goalBarText}>{Math.round(goalPct * 100)}%</Text>
-            </View>
-=======
         {/* ── Period toggle ── */}
         <View style={[styles.periodToggle, { marginHorizontal: spacing.lg }]}>
           <View
@@ -163,7 +116,6 @@ export default function ProgressScreen() {
             >
               This Week
             </Text>
->>>>>>> origin/main
           </View>
         </View>
 
@@ -340,45 +292,9 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.8)",
   },
 
-<<<<<<< HEAD
-  // Upgrade banner
-  upgradeBanner: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  upgradeBannerContent: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 8,
-  },
-  upgradeBannerText: {
-    flex: 1,
-  },
-  upgradeBannerTitle: {
-    fontSize: 15,
-    fontFamily: FONTS.interSemiBold,
-    color: "#fff",
-    marginBottom: 2,
-  },
-  upgradeBannerSubtitle: {
-    fontSize: 12,
-    fontFamily: FONTS.interRegular,
-    color: "rgba(255,255,255,0.8)",
-  },
-
-  // Glance card
-  glanceCard: {
-    borderRadius: 20,
-    padding: spacing.lg,
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-=======
   // Period toggle
   periodToggle: {
     marginBottom: spacing.md,
->>>>>>> origin/main
   },
   toggleTrack: {
     flexDirection: "row",
