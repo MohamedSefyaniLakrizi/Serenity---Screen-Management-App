@@ -17,9 +17,8 @@ Most screen-time tools only report usage. Serenity is built to **change behavior
 1. **Onboarding (15 screens)** captures goals and setup context.
 2. **Create Group flow (4 steps)** selects apps, configures mode, unlock count, and timeframe.
 3. **Native enforcement** applies blocking through FamilyControls / ManagedSettings / DeviceActivity.
-4. **Mindful Pause deep link** (`serenity://mindful-pause`) handles intentional unlock actions.
-5. **Progress + gamification** updates streaks, usage metrics, and fox state.
-6. **Monetization** uses RevenueCat for premium limits and paywall flows.
+4. **Progress + gamification** updates streaks, usage metrics, and fox state.
+5. **Monetization** uses RevenueCat for premium limits and paywall flows.
 
 ## Tech Stack
 
@@ -72,5 +71,3 @@ npm run lint    # Lint project
 - 🚧 Some progress data and parts of polish/animations are still evolving
 
 ---
-
-Built with care for healthier digital habits.
