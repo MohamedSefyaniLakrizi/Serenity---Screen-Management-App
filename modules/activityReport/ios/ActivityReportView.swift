@@ -31,6 +31,14 @@ public class ActivityReportView: ExpoView {
     setupHostingControllerIfNeeded()
   }
 
+  /// Retry setup once the view has a concrete frame, in case the view-controller
+  /// hierarchy wasn't ready when didMoveToWindow fired.
+  override public func layoutSubviews() {
+    super.layoutSubviews()
+    guard bounds.width > 0, bounds.height > 0 else { return }
+    setupHostingControllerIfNeeded()
+  }
+
   // ─── Private helpers ────────────────────────────────────────────────────────
 
   private func setupHostingControllerIfNeeded() {
@@ -97,14 +105,41 @@ public class ActivityReportView: ExpoView {
     )
   }
 
-  /// Walk the UIResponder chain upwards to find the nearest UIViewController.
+  /// Walk the UIResponder chain upwards to find the nearest UIViewController,
+  /// falling back to the key window's top-most view controller.
   private func nearestViewController() -> UIViewController? {
+    // 1. Walk the responder chain first (fast path, works most of the time).
     var responder: UIResponder? = self
     while let r = responder {
       if let vc = r as? UIViewController { return vc }
       responder = r.next
     }
+
+    // 2. Fallback: grab the top-most VC from the key window (handles cases
+    //    where UIView subclasses break the responder chain, common in RN Fabric).
+    let keyWindow = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }
+
+    if let root = keyWindow?.rootViewController {
+      return topViewController(from: root)
+    }
     return nil
+  }
+
+  /// Recursively descend to the topmost presented/visible view controller.
+  private func topViewController(from vc: UIViewController) -> UIViewController {
+    if let presented = vc.presentedViewController {
+      return topViewController(from: presented)
+    }
+    if let nav = vc as? UINavigationController, let visible = nav.visibleViewController {
+      return topViewController(from: visible)
+    }
+    if let tab = vc as? UITabBarController, let selected = tab.selectedViewController {
+      return topViewController(from: selected)
+    }
+    return vc
   }
 
   // ─── Public API (called by Expo module props) ────────────────────────────────

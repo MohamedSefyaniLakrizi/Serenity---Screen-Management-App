@@ -18,16 +18,15 @@ import {
   FlowVariantKey,
   OnboardingContext,
   OnboardingRoutePath,
-  getFlowSteps,
   getNextStep,
   getPreviousStep,
   getProgressFraction,
-  useFlowVariantFlag,
-} from '@/config/onboardingFlow';
-import { useOnboardingStore } from '@/store/onboardingStore';
-import { router } from 'expo-router';
-import { usePostHog } from 'posthog-react-native';
-import { useCallback } from 'react';
+  useRemoteOnboardingFlow,
+} from "@/config/onboardingFlow";
+import { useOnboardingStore } from "@/store/onboardingStore";
+import { router } from "expo-router";
+import { usePostHog } from "posthog-react-native";
+import { useCallback } from "react";
 
 export interface OnboardingNextResult {
   /** Navigate to the next step in the active flow variant. */
@@ -40,24 +39,24 @@ export interface OnboardingNextResult {
   variant: FlowVariantKey;
 }
 
-export function useOnboardingNext(currentRoute: OnboardingRoutePath): OnboardingNextResult {
-  const flagVariant = useFlowVariantFlag();
-  const variant: FlowVariantKey = flagVariant ?? 'default';
+export function useOnboardingNext(
+  currentRoute: OnboardingRoutePath,
+): OnboardingNextResult {
+  const { steps, variant } = useRemoteOnboardingFlow();
   const { screenTimePermissionGranted } = useOnboardingStore();
   const posthog = usePostHog();
 
   const ctx: OnboardingContext = { screenTimePermissionGranted };
 
   // Derive step index and total for analytics
-  const steps = getFlowSteps(variant);
   const stepIndex = steps.findIndex((s) => s.route === currentRoute);
   const currentStep = steps[stepIndex];
 
   const navigateNext = useCallback(() => {
-    const next = getNextStep(currentRoute, variant, ctx);
+    const next = getNextStep(currentRoute, steps, ctx);
 
     // Track step completion before navigating away
-    posthog?.capture('onboarding_step_completed', {
+    posthog?.capture("onboarding_step_completed", {
       screen_name: currentStep?.name ?? currentRoute,
       step_index: stepIndex,
       total_steps: steps.length,
@@ -68,12 +67,12 @@ export function useOnboardingNext(currentRoute: OnboardingRoutePath): Onboarding
     if (next) {
       router.push(next.route as any);
     }
-  }, [currentRoute, variant, screenTimePermissionGranted]);
+  }, [currentRoute, variant, screenTimePermissionGranted, steps]);
 
   const navigatePrev = useCallback(() => {
-    const prev = getPreviousStep(currentRoute, variant, ctx);
+    const prev = getPreviousStep(currentRoute, steps, ctx);
 
-    posthog?.capture('onboarding_step_back', {
+    posthog?.capture("onboarding_step_back", {
       screen_name: currentStep?.name ?? currentRoute,
       step_index: stepIndex,
       variant,
@@ -84,9 +83,14 @@ export function useOnboardingNext(currentRoute: OnboardingRoutePath): Onboarding
     } else {
       router.back();
     }
-  }, [currentRoute, variant, screenTimePermissionGranted]);
+  }, [currentRoute, variant, screenTimePermissionGranted, steps]);
 
-  const progressFraction = getProgressFraction(currentRoute, variant, ctx);
+  const progressFraction = getProgressFraction(currentRoute, steps, ctx);
 
-  return { navigateNext, navigatePrev, progressFraction, variant };
+  return {
+    navigateNext,
+    navigatePrev,
+    progressFraction,
+    variant: variant as FlowVariantKey,
+  };
 }

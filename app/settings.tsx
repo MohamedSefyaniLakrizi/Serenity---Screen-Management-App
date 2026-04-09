@@ -76,11 +76,8 @@ export default function SettingsScreen() {
               await AsyncStorage.multiRemove([
                 'onboardingCompleted',
                 'onboardingData',
-                'fox',
                 'userPreferences',
                 'todayData',
-                'appLimits',
-                'categoryLimits',
                 'streakData',
                 '@app_groups',
                 '@theme_mode',

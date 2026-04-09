@@ -155,7 +155,7 @@ export default function CustomTimeFrameScreen() {
         [],
         30, // sessionLength - not used in MVP
         isFromUnlocks ? unlockCount : 0,
-        true, // isBlocked
+        !isFromUnlocks,
         familyActivitySelection || undefined,
         applicationCount,
         categoryCount,

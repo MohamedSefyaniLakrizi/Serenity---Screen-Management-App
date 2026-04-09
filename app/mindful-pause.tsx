@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
+import { unblockSelection } from "react-native-device-activity";
 import React, {
     useCallback,
     useEffect,
@@ -343,6 +344,16 @@ export default function MindfulPauseScreen() {
         holdProgress.value = withTiming(0, { duration: 400 });
         buttonScale.value = withTiming(1, { duration: 200 });
         return;
+      }
+
+      // Lift the native Screen Time shield so the app becomes accessible.
+      // The shield will be re-applied on the next app launch / block cycle.
+      if (!isMock && Platform.OS === "ios") {
+        try {
+          unblockSelection({ activitySelectionId: group.id });
+        } catch (e) {
+          console.warn("[MindfulPause] unblockSelection failed (non-fatal):", e);
+        }
       }
     }
 

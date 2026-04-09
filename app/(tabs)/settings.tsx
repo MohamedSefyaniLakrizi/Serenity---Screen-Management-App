@@ -5,7 +5,9 @@ import { useThemedColors } from "@/hooks/useThemedStyles";
 import { useAppStore } from "@/store/appStore";
 import { useOnboardingStore } from "@/store/onboardingStore";
 import { useThemeStore } from "@/store/themeStore";
+import { usePurchasesStore } from "@/store/purchasesStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Purchases from "react-native-purchases";
 import { router } from "expo-router";
 import {
   Bell,
@@ -140,6 +142,30 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleRemovePremium = async () => {
+    Alert.alert(
+      "Remove Premium (Dev)",
+      "This will invalidate the local RevenueCat cache and force the app into non-premium mode. Useful for testing paywalls.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await Purchases.invalidateCustomerInfoCache();
+              usePurchasesStore.setState({ isPro: false, customerInfo: null });
+              Alert.alert("Done", "Premium removed for this session. Restart or re-fetch to sync with RevenueCat.");
+            } catch (err) {
+              console.error("[Dev] removePremium error:", err);
+              Alert.alert("Error", "Could not remove premium.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleResetOnboarding = () => {
     Alert.alert(
       "Reset Onboarding",
@@ -154,11 +180,8 @@ export default function SettingsScreen() {
               await AsyncStorage.multiRemove([
                 "onboardingCompleted",
                 "onboardingData",
-                "fox",
                 "userPreferences",
                 "todayData",
-                "appLimits",
-                "categoryLimits",
                 "streakData",
                 "@app_groups",
                 "@theme_mode",
@@ -607,6 +630,16 @@ export default function SettingsScreen() {
             variant="outline"
             onPress={handleResetOnboarding}
             style={styles.resetButton}
+          />
+        )}
+
+        {/* Remove Premium — dev builds only */}
+        {__DEV__ && (
+          <Button
+            title="Remove Premium (Dev)"
+            variant="outline"
+            onPress={handleRemovePremium}
+            style={StyleSheet.flatten([styles.resetButton, { borderColor: "#E74C3C", marginTop: 0 }])}
           />
         )}
 

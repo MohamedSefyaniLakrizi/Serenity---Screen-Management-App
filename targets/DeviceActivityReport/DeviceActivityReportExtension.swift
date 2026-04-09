@@ -10,6 +10,8 @@
 import DeviceActivity
 import SwiftUI
 
+#if os(iOS)
+
 @main
 struct SerenityActivityReportExtension: DeviceActivityReportExtension {
   var body: some DeviceActivityReportScene {
@@ -17,3 +19,5 @@ struct SerenityActivityReportExtension: DeviceActivityReportExtension {
     WeeklyActivityReport()
   }
 }
+
+#endif

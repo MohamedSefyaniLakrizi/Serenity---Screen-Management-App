@@ -8,6 +8,7 @@
 //
 
 import DeviceActivity
+import SwiftUI
 
 @available(iOS 16.0, *)
 extension DeviceActivityReport.Context {

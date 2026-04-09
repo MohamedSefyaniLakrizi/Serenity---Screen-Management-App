@@ -1,7 +1,6 @@
 import { spacing, typography } from '@/constants';
 import { FONTS } from '@/constants/typography';
 import { useThemedColors } from '@/hooks/useThemedStyles';
-import { useAppStore } from '@/store/appStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { router } from 'expo-router';
 import { Check, Sparkles } from 'lucide-react-native';
@@ -124,8 +123,7 @@ function StepCard({
 
 export default function BuildingPlanScreen() {
   const theme = useThemedColors();
-  const { completeOnboarding, foxName, primaryGoal } = useOnboardingStore();
-  const { initializeFox } = useAppStore();
+  const { completeOnboarding } = useOnboardingStore();
 
   // -1 = nothing started yet; 0/1/2 = that index is active; 3 = all done
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -158,7 +156,6 @@ export default function BuildingPlanScreen() {
 
     const redirect = setTimeout(async () => {
       try {
-        if (foxName && primaryGoal) initializeFox(foxName, primaryGoal);
         await completeOnboarding();
       } catch (err) {
         console.error('building-plan completion error:', err);

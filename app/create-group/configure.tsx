@@ -1,36 +1,40 @@
-import { OnboardingHeader } from '@/components/OnboardingHeader';
-import { Button } from '@/components/ui';
-import { colors, spacing } from '@/constants';
-import { FONTS } from '@/constants/typography';
-import { useRevenueCat } from '@/hooks/useRevenueCat';
-import { useThemedColors } from '@/hooks/useThemedStyles';
-import { AppGroupService } from '@/services/appGroups';
-import { router, useLocalSearchParams } from 'expo-router';
-import { Crown, Lock, Unlock } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { OnboardingHeader } from "@/components/OnboardingHeader";
+import { Button } from "@/components/ui";
+import { spacing } from "@/constants";
+import { FONTS } from "@/constants/typography";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
+import { useThemedColors } from "@/hooks/useThemedStyles";
+import { AppGroupService } from "@/services/appGroups";
+import { router, useLocalSearchParams } from "expo-router";
+import { Crown, Lock, Unlock } from "lucide-react-native";
+import React, { useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  Alert,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ConfigureGroupScreen() {
   const theme = useThemedColors();
   const params = useLocalSearchParams();
-  const { isPro, showPaywall } = useRevenueCat();
-  const [groupName, setGroupName] = useState('');
-  const [blockMode, setBlockMode] = useState<'unlocks' | 'blocked'>('blocked');
+  const { isPro, showPaywallIfNeeded } = useRevenueCat();
+  const [groupName, setGroupName] = useState("");
+  const [blockMode, setBlockMode] = useState<"unlocks" | "blocked">("unlocks");
 
   // Parse params from app selection screen
-  const familyActivitySelection = (params.familyActivitySelection as string) ?? '';
-  const applicationCount = parseInt((params.applicationCount as string) ?? '0', 10);
-  const categoryCount = parseInt((params.categoryCount as string) ?? '0', 10);
+  const familyActivitySelection =
+    (params.familyActivitySelection as string) ?? "";
+  const applicationCount = parseInt(
+    (params.applicationCount as string) ?? "0",
+    10,
+  );
+  const categoryCount = parseInt((params.categoryCount as string) ?? "0", 10);
   const totalSelected = applicationCount + categoryCount;
 
   // Set default group name on mount
@@ -43,17 +47,30 @@ export default function ConfigureGroupScreen() {
     setDefaultName();
   }, []);
 
-  const handleContinue = () => {
+  const handleSelectUnlocksMode = async () => {
+    if (!isPro) {
+      const purchased = await showPaywallIfNeeded();
+      if (!purchased) return;
+    }
+    setBlockMode("unlocks");
+  };
+
+  const handleContinue = async () => {
     // Validation
     if (!groupName.trim()) {
-      Alert.alert('Validation Error', 'Please enter a group name');
+      Alert.alert("Validation Error", "Please enter a group name");
       return;
     }
 
+    if (blockMode === "unlocks" && !isPro) {
+      const purchased = await showPaywallIfNeeded();
+      if (!purchased) return;
+    }
+
     // Navigate to appropriate next screen based on mode
-    if (blockMode === 'unlocks') {
+    if (blockMode === "unlocks") {
       router.push({
-        pathname: '/create-group/unlocks',
+        pathname: "/create-group/unlocks",
         params: {
           familyActivitySelection,
           applicationCount: applicationCount.toString(),
@@ -63,7 +80,7 @@ export default function ConfigureGroupScreen() {
       });
     } else {
       router.push({
-        pathname: '/create-group/custom-timeframe',
+        pathname: "/create-group/custom-timeframe",
         params: {
           familyActivitySelection,
           applicationCount: applicationCount.toString(),
@@ -74,22 +91,14 @@ export default function ConfigureGroupScreen() {
     }
   };
 
-  const handleUnlocksPress = async () => {
-    if (!isPro) {
-      await showPaywall();
-      return;
-    }
-    setBlockMode('unlocks');
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <StatusBar barStyle={theme.statusBar} />
 
         <OnboardingHeader
-          progressFraction={blockMode === 'unlocks' ? 2 / 4 : 2 / 3}
-          stepLabel={blockMode === 'unlocks' ? 'Step 2 of 4' : 'Step 2 of 3'}
+          progressFraction={blockMode === "unlocks" ? 2 / 4 : 2 / 3}
+          stepLabel={blockMode === "unlocks" ? "Step 2 of 4" : "Step 2 of 3"}
           onBack={() => router.back()}
         />
 
@@ -107,7 +116,6 @@ export default function ConfigureGroupScreen() {
               <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
                 Set a name and choose how to limit access
               </Text>
-
             </View>
 
             {/* Group Name Input */}
@@ -144,42 +152,60 @@ export default function ConfigureGroupScreen() {
                     {
                       backgroundColor: theme.surface,
                       borderColor:
-                        blockMode === 'unlocks' ? theme.primary : theme.border,
+                        blockMode === "unlocks" ? theme.primary : theme.border,
                     },
-                    blockMode === 'unlocks' && styles.modeCardSelected,
+                    blockMode === "unlocks" && styles.modeCardSelected,
                   ]}
-                  onPress={handleUnlocksPress}
+                  onPress={handleSelectUnlocksMode}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.modeCardHeader}>
-                    <View
-                      style={[
-                        styles.modeIcon,
-                        {
-                          backgroundColor:
-                            blockMode === 'unlocks'
-                              ? theme.primaryLight
-                              : theme.surfaceSecondary,
-                        },
-                      ]}
-                    >
-                      <Unlock
-                        size={24}
-                        color={blockMode === 'unlocks' ? theme.primary : theme.textSecondary}
-                      />
-                    </View>
-                    {!isPro && (
-                      <View style={styles.proBadge}>
-                        <Crown size={10} color="#fff" />
-                        <Text style={styles.proBadgeText}>PRO</Text>
-                      </View>
-                    )}
+                  <View
+                    style={[
+                      styles.modeIcon,
+                      {
+                        backgroundColor:
+                          blockMode === "unlocks"
+                            ? theme.primaryLight
+                            : theme.surfaceSecondary,
+                      },
+                    ]}
+                  >
+                    <Unlock
+                      size={24}
+                      color={
+                        blockMode === "unlocks"
+                          ? theme.primary
+                          : theme.textSecondary
+                      }
+                    />
                   </View>
-                  <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
+                  <Text
+                    style={[styles.modeTitle, { color: theme.textPrimary }]}
+                  >
                     Limited Unlocks
                   </Text>
-                  <Text style={[styles.modeSubtitle, { color: theme.textSecondary }]}>
-                    {!isPro ? 'Premium feature' : 'Allow a set number of unlocks per day'}
+                  {!isPro && (
+                    <View
+                      style={[
+                        styles.proBadge,
+                        { backgroundColor: theme.primarySubtle ?? "#FAF0EC" },
+                      ]}
+                    >
+                      <Crown size={9} color={theme.primary} />
+                      <Text
+                        style={[styles.proBadgeText, { color: theme.primary }]}
+                      >
+                        Pro
+                      </Text>
+                    </View>
+                  )}
+                  <Text
+                    style={[
+                      styles.modeSubtitle,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
+                    Allow a set number of unlocks per day
                   </Text>
                 </TouchableOpacity>
 
@@ -190,11 +216,11 @@ export default function ConfigureGroupScreen() {
                     {
                       backgroundColor: theme.surface,
                       borderColor:
-                        blockMode === 'blocked' ? theme.primary : theme.border,
+                        blockMode === "blocked" ? theme.primary : theme.border,
                     },
-                    blockMode === 'blocked' && styles.modeCardSelected,
+                    blockMode === "blocked" && styles.modeCardSelected,
                   ]}
-                  onPress={() => setBlockMode('blocked')}
+                  onPress={() => setBlockMode("blocked")}
                   activeOpacity={0.7}
                 >
                   <View
@@ -202,7 +228,7 @@ export default function ConfigureGroupScreen() {
                       styles.modeIcon,
                       {
                         backgroundColor:
-                          blockMode === 'blocked'
+                          blockMode === "blocked"
                             ? theme.primaryLight
                             : theme.surfaceSecondary,
                       },
@@ -210,13 +236,24 @@ export default function ConfigureGroupScreen() {
                   >
                     <Lock
                       size={24}
-                      color={blockMode === 'blocked' ? theme.primary : theme.textSecondary}
+                      color={
+                        blockMode === "blocked"
+                          ? theme.primary
+                          : theme.textSecondary
+                      }
                     />
                   </View>
-                  <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
+                  <Text
+                    style={[styles.modeTitle, { color: theme.textPrimary }]}
+                  >
                     Fully Blocked
                   </Text>
-                  <Text style={[styles.modeSubtitle, { color: theme.textSecondary }]}>
+                  <Text
+                    style={[
+                      styles.modeSubtitle,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
                     Block completely with no access
                   </Text>
                 </TouchableOpacity>
@@ -289,7 +326,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.interRegular,
   },
   modeGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.md,
   },
   modeCard: {
@@ -302,31 +339,12 @@ const styles = StyleSheet.create({
   modeCardSelected: {
     borderWidth: 2,
   },
-  modeCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  proBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  proBadgeText: {
-    fontSize: 10,
-    fontFamily: FONTS.interSemiBold,
-    color: '#fff',
-  },
   modeIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: spacing.xs / 2,
   },
   modeTitle: {
@@ -337,6 +355,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: FONTS.interRegular,
     lineHeight: 16,
+  },
+  proBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    alignSelf: "flex-start",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  proBadgeText: {
+    fontSize: 10,
+    fontFamily: FONTS.interSemiBold,
   },
   actions: {
     paddingHorizontal: spacing.lg,

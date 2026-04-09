@@ -11,6 +11,8 @@ import DeviceActivity
 import ManagedSettings
 import SwiftUI
 
+#if os(iOS)
+
 // ─── Context identifiers ─────────────────────────────────────────────────────
 // These string values must match what the main app passes to DeviceActivityReport.
 
@@ -23,7 +25,7 @@ extension DeviceActivityReport.Context {
 
 struct AppUsageItem: Identifiable {
   let id = UUID()
-  let token: ApplicationToken
+  let name: String
   let duration: TimeInterval
 }
 
@@ -41,31 +43,31 @@ struct DailyUsageItem: Identifiable {
 /// Receives raw DeviceActivityResults, aggregates them, and renders TotalActivityView.
 struct TotalActivityReport: DeviceActivityReportScene {
   let context: DeviceActivityReport.Context = .totalActivity
+  let content: (TotalActivityView) -> TotalActivityView = { $0 }
 
-  func makeContent(
-    _ activityReport: DeviceActivityResults<DeviceActivityData>
+  func makeConfiguration(
+    representing activityReport: DeviceActivityResults<DeviceActivityData>
   ) async -> TotalActivityView {
     var totalDuration: TimeInterval = 0
-    var appMap: [AnyHashable: TimeInterval] = [:]
-    var appTokens: [AnyHashable: ApplicationToken] = [:]
+    var appMap: [String: TimeInterval] = [:]
 
     for await activityData in activityReport {
       for await segment in activityData.activitySegments {
         totalDuration += segment.totalActivityDuration
-        for await app in segment.applications {
-          guard let token = app.token else { continue }
-          let key = token.hashValue as AnyHashable
-          appMap[key, default: 0] += app.totalActivityDuration
-          appTokens[key] = token
+        for await category in segment.categories {
+          for await app in category.applications {
+            let name = app.application.localizedDisplayName
+              ?? app.application.bundleIdentifier
+              ?? "Unknown"
+            appMap[name, default: 0] += app.totalActivityDuration
+          }
         }
       }
     }
 
-    let appUsages: [AppUsageItem] = appMap.compactMap { key, duration in
-      guard let token = appTokens[key] else { return nil }
-      return AppUsageItem(token: token, duration: duration)
-    }
-    .sorted { $0.duration > $1.duration }
+    let appUsages: [AppUsageItem] = appMap
+      .map { AppUsageItem(name: $0.key, duration: $0.value) }
+      .sorted { $0.duration > $1.duration }
 
     return TotalActivityView(totalDuration: totalDuration, appUsages: appUsages)
   }
@@ -77,14 +79,14 @@ struct TotalActivityReport: DeviceActivityReportScene {
 /// Provides per-day breakdown and per-app totals for the current week.
 struct WeeklyActivityReport: DeviceActivityReportScene {
   let context: DeviceActivityReport.Context = .weeklyActivity
+  let content: (WeeklyActivityView) -> WeeklyActivityView = { $0 }
 
-  func makeContent(
-    _ activityReport: DeviceActivityResults<DeviceActivityData>
+  func makeConfiguration(
+    representing activityReport: DeviceActivityResults<DeviceActivityData>
   ) async -> WeeklyActivityView {
     var totalDuration: TimeInterval = 0
     var dailyMap: [Date: TimeInterval] = [:]
-    var appMap: [AnyHashable: TimeInterval] = [:]
-    var appTokens: [AnyHashable: ApplicationToken] = [:]
+    var appMap: [String: TimeInterval] = [:]
     let cal = Calendar.current
 
     for await activityData in activityReport {
@@ -93,26 +95,24 @@ struct WeeklyActivityReport: DeviceActivityReportScene {
         let day = cal.startOfDay(for: segment.dateInterval.start)
         dailyMap[day, default: 0] += segment.totalActivityDuration
         totalDuration += segment.totalActivityDuration
-
-        for await app in segment.applications {
-          guard let token = app.token else { continue }
-          let key = token.hashValue as AnyHashable
-          appMap[key, default: 0] += app.totalActivityDuration
-          appTokens[key] = token
+        for await category in segment.categories {
+          for await app in category.applications {
+            let name = app.application.localizedDisplayName
+              ?? app.application.bundleIdentifier
+              ?? "Unknown"
+            appMap[name, default: 0] += app.totalActivityDuration
+          }
         }
       }
     }
 
-    let dailyUsages: [DailyUsageItem] = dailyMap.map { date, duration in
-      DailyUsageItem(id: date, date: date, duration: duration)
-    }
-    .sorted { $0.date < $1.date }
+    let dailyUsages: [DailyUsageItem] = dailyMap
+      .map { DailyUsageItem(id: $0.key, date: $0.key, duration: $0.value) }
+      .sorted { $0.date < $1.date }
 
-    let appUsages: [AppUsageItem] = appMap.compactMap { key, duration in
-      guard let token = appTokens[key] else { return nil }
-      return AppUsageItem(token: token, duration: duration)
-    }
-    .sorted { $0.duration > $1.duration }
+    let appUsages: [AppUsageItem] = appMap
+      .map { AppUsageItem(name: $0.key, duration: $0.value) }
+      .sorted { $0.duration > $1.duration }
 
     return WeeklyActivityView(
       totalDuration: totalDuration,
@@ -151,7 +151,7 @@ struct TotalActivityView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.secondarySystemBackground)
+        .background(Color(uiColor: .secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
 
         // ── Top apps ───────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ struct TotalActivityView: View {
             ForEach(appUsages.prefix(8)) { item in
               VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                  Label(item.token)
+                  Label(item.name, systemImage: "app")
                     .lineLimit(1)
                   Spacer()
                   Text(formatDuration(item.duration))
@@ -189,7 +189,7 @@ struct TotalActivityView: View {
             }
           }
           .padding()
-          .background(.secondarySystemBackground)
+          .background(Color(uiColor: .secondarySystemBackground))
           .clipShape(RoundedRectangle(cornerRadius: 16))
         }
 
@@ -241,7 +241,7 @@ struct WeeklyActivityView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.secondarySystemBackground)
+        .background(Color(uiColor: .secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
 
         // ── Daily bar chart ────────────────────────────────────────────────
@@ -275,7 +275,7 @@ struct WeeklyActivityView: View {
             .frame(height: 155)
           }
           .padding()
-          .background(.secondarySystemBackground)
+          .background(Color(uiColor: .secondarySystemBackground))
           .clipShape(RoundedRectangle(cornerRadius: 16))
         }
 
@@ -290,7 +290,7 @@ struct WeeklyActivityView: View {
             ForEach(appUsages.prefix(8)) { item in
               VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                  Label(item.token)
+                  Label(item.name, systemImage: "app")
                     .lineLimit(1)
                   Spacer()
                   Text(formatDuration(item.duration))
@@ -314,7 +314,7 @@ struct WeeklyActivityView: View {
             }
           }
           .padding()
-          .background(.secondarySystemBackground)
+          .background(Color(uiColor: .secondarySystemBackground))
           .clipShape(RoundedRectangle(cornerRadius: 16))
         }
 
@@ -334,3 +334,4 @@ struct WeeklyActivityView: View {
   }
 }
 
+#endif

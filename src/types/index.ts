@@ -2,19 +2,7 @@
  * TypeScript types for Serenity app
  */
 
-// Fox States
-export type FoxMood = 'happy' | 'neutral' | 'sad' | 'sleeping';
-
-export type FoxEvolutionStage = 'baby' | 'teen' | 'adult';
-
-export interface FoxState {
-  name: string;
-  mood: FoxMood;
-  happiness: number; // 0-100
-  evolutionStage: FoxEvolutionStage;
-  lastFed: Date | null;
-  createdAt: Date;
-}
+export * from "./habits";
 
 // Screen Time
 export interface AppUsage {
@@ -37,7 +25,12 @@ export interface AppLimit {
   lastReset: string; // date string
 }
 
-export type AppCategory = 'social' | 'games' | 'entertainment' | 'productivity' | 'other';
+export type AppCategory =
+  | "social"
+  | "games"
+  | "entertainment"
+  | "productivity"
+  | "other";
 
 export interface CategoryLimit {
   category: AppCategory;
@@ -62,7 +55,11 @@ export interface ScreenTimeData {
 }
 
 // User Goals
-export type UserGoal = 'reduce-usage' | 'build-focus' | 'better-sleep' | 'life-balance';
+export type UserGoal =
+  | "reduce-usage"
+  | "build-focus"
+  | "better-sleep"
+  | "life-balance";
 
 export interface UserPreferences {
   goal: UserGoal;

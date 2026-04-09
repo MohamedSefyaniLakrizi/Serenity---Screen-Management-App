@@ -25,8 +25,6 @@ import {
   View,
 } from "react-native";
 
-const FREE_GROUP_LIMIT = 1;
-
 export default function AppsScreen() {
   const router = useRouter();
   const themedColors = useThemedColors();
@@ -62,7 +60,7 @@ export default function AppsScreen() {
   };
 
   const handleCreateGroup = async () => {
-    if (!isPro && appGroups.length >= FREE_GROUP_LIMIT) {
+    if (appGroups.length >= 1 && !isPro) {
       await showPaywall();
       return;
     }
@@ -209,33 +207,40 @@ export default function AppsScreen() {
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: themedColors.textPrimary }]}>
-            App Groups
-          </Text>
-          <Text
-            style={[styles.subtitle, { color: themedColors.textSecondary }]}
-          >
-            Manage your blocked and limited apps
-          </Text>
+          <View style={styles.headerLeft}>
+            <Text style={[styles.title, { color: themedColors.textPrimary }]}>
+              App Groups
+            </Text>
+            <Text
+              style={[styles.subtitle, { color: themedColors.textSecondary }]}
+            >
+              Manage your blocked and limited apps
+            </Text>
+          </View>
+          {!isPro && (
+            <TouchableOpacity
+              onPress={showPaywall}
+              style={[
+                styles.upgradeButton,
+                {
+                  backgroundColor: themedColors.primarySubtle ?? "#FAF0EC",
+                  borderColor: themedColors.primary,
+                },
+              ]}
+              activeOpacity={0.7}
+            >
+              <Crown size={13} color={themedColors.primary} />
+              <Text
+                style={[
+                  styles.upgradeButtonText,
+                  { color: themedColors.primary },
+                ]}
+              >
+                Upgrade
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
-
-        {/* Upgrade Banner for free users */}
-        {!isPro && (
-          <TouchableOpacity
-            onPress={() => showPaywall()}
-            style={styles.upgradeBanner}
-            activeOpacity={0.8}
-          >
-            <View style={styles.upgradeBannerContent}>
-              <Crown size={20} color="#fff" />
-              <View style={styles.upgradeBannerText}>
-                <Text style={styles.upgradeBannerTitle}>Upgrade to Serenity Pro</Text>
-                <Text style={styles.upgradeBannerSubtitle}>Unlimited groups, flexible blocking & more</Text>
-              </View>
-              <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
-            </View>
-          </TouchableOpacity>
-        )}
 
         {/* Create Group Button */}
         <TouchableOpacity
@@ -296,32 +301,28 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   header: {
-    marginBottom: spacing.lg,
-  },
-  upgradeBanner: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  upgradeBannerContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    justifyContent: "space-between",
+    marginBottom: spacing.lg,
   },
-  upgradeBannerText: {
+  headerLeft: {
     flex: 1,
+    gap: 4,
   },
-  upgradeBannerTitle: {
-    fontSize: 15,
-    fontFamily: FONTS.interSemiBold,
-    color: "#fff",
-    marginBottom: 2,
+  upgradeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginLeft: spacing.sm,
   },
-  upgradeBannerSubtitle: {
+  upgradeButtonText: {
     fontSize: 12,
-    fontFamily: FONTS.interRegular,
-    color: "rgba(255,255,255,0.8)",
+    fontFamily: FONTS.interSemiBold,
   },
   title: {
     fontSize: typography.h1,

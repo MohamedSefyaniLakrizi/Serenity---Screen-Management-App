@@ -11,44 +11,78 @@ import { useURL } from "expo-linking";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, AppState, AppStateStatus, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  AppState,
+  AppStateStatus,
+  StyleSheet,
+  View,
+} from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
-  const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState<
+    boolean | null
+  >(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const router = useRouter();
   const segments = useSegments();
-  const loadTheme = useThemeStore(state => state.loadTheme);
-  const onSDKConfigured = usePurchasesStore(state => state.onSDKConfigured);
+  const loadTheme = useThemeStore((state) => state.loadTheme);
+  const onSDKConfigured = usePurchasesStore((state) => state.onSDKConfigured);
   const deepLinkUrl = useURL();
+  // Buffer a deep link that arrives before the navigation tree is mounted.
+  const pendingDeepLinkRef = useRef<string | null>(null);
+
+  // Navigate to the mindful-pause screen, buffering if not yet ready.
+  const navigateToMindfulPause = useCallback(
+    (groupId: string) => {
+      const path = `/mindful-pause?groupId=${encodeURIComponent(groupId)}`;
+      if (isInitialized && isOnboardingComplete !== null) {
+        router.push(path as any);
+      } else {
+        pendingDeepLinkRef.current = path;
+      }
+    },
+    [isInitialized, isOnboardingComplete, router],
+  );
 
   // Handle deep links (e.g. serenity://mindful-pause?groupId=xxx from shield button)
   useEffect(() => {
     if (!deepLinkUrl) return;
     try {
       const url = new URL(deepLinkUrl);
-      if (url.hostname === 'mindful-pause') {
-        const groupId = url.searchParams.get('groupId') ?? '';
-        router.push(`/mindful-pause?groupId=${encodeURIComponent(groupId)}`);
+      if (url.hostname === "mindful-pause") {
+        const groupId = url.searchParams.get("groupId") ?? "";
+        navigateToMindfulPause(groupId);
       }
     } catch {}
-  }, [deepLinkUrl]);
+  }, [deepLinkUrl, navigateToMindfulPause]);
+
+  // Flush any buffered deep link once the navigation tree is ready.
+  useEffect(() => {
+    if (!isInitialized || isOnboardingComplete === null) return;
+    if (pendingDeepLinkRef.current) {
+      const path = pendingDeepLinkRef.current;
+      pendingDeepLinkRef.current = null;
+      // Small delay to let the Stack finish mounting before pushing.
+      setTimeout(() => router.push(path as any), 150);
+    }
+  }, [isInitialized, isOnboardingComplete, router]);
 
   // Check onboarding status on mount
   const checkOnboardingStatus = useCallback(async () => {
     try {
-      console.log('Checking onboarding status...');
-      const completed = await AsyncStorage.getItem('onboardingCompleted');
-      const isComplete = completed === 'true';
-      console.log('Onboarding completed:', isComplete);
+      console.log("Checking onboarding status...");
+      const completed = await AsyncStorage.getItem("onboardingCompleted");
+      const isComplete = completed === "true";
+      console.log("Onboarding completed:", isComplete);
       setIsOnboardingComplete(isComplete);
       return isComplete;
     } catch (error) {
-      console.error('Error checking onboarding status:', error);
+      console.error("Error checking onboarding status:", error);
       setIsOnboardingComplete(false);
       return false;
     }
@@ -64,7 +98,7 @@ export default function RootLayout() {
       try {
         await AppGroupService.resetDailyUnlocks();
       } catch (error) {
-        console.error('Error resetting daily unlocks:', error);
+        console.error("Error resetting daily unlocks:", error);
       }
     };
 
@@ -72,13 +106,16 @@ export default function RootLayout() {
     checkDailyReset();
 
     // Check when app comes to foreground
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        checkDailyReset();
-        // Sync unlock counts from shield extension
-        AppGroupService.syncUnlockCounts();
-      }
-    });
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState: AppStateStatus) => {
+        if (nextAppState === "active") {
+          checkDailyReset();
+          // Sync unlock counts from shield extension
+          AppGroupService.syncUnlockCounts();
+        }
+      },
+    );
 
     // Set up midnight reset timer
     const setupMidnightTimer = () => {
@@ -113,12 +150,17 @@ export default function RootLayout() {
       await Promise.all([
         checkOnboardingStatus(),
         loadTheme(),
+        // Rewrite all shield configs to UserDefaults so that any code changes
+        // to colours / quotes / emoji are reflected immediately for existing groups.
+        AppGroupService.refreshAllShieldConfigs(),
         // Configure RevenueCat SDK. Any errors here are non-fatal.
-        configurePurchases().then(() => {
-          onSDKConfigured();
-        }).catch((err) => {
-          console.warn('[RevenueCat] Init error (non-fatal):', err);
-        }),
+        configurePurchases()
+          .then(() => {
+            onSDKConfigured();
+          })
+          .catch((err) => {
+            console.warn("[RevenueCat] Init error (non-fatal):", err);
+          }),
       ]);
       setIsInitialized(true);
     };
@@ -129,30 +171,35 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isInitialized || isOnboardingComplete === null) return;
 
-    const inOnboarding = segments[0] === 'onboarding';
-    const inTabs = segments[0] === '(tabs)';
+    const inOnboarding = segments[0] === "onboarding";
+    const inTabs = segments[0] === "(tabs)";
 
-    console.log('🚦 Navigation guard:', { isOnboardingComplete, inOnboarding, inTabs, segments });
+    console.log("🚦 Navigation guard:", {
+      isOnboardingComplete,
+      inOnboarding,
+      inTabs,
+      segments,
+    });
 
     // Route to appropriate location
     if (!isOnboardingComplete && !inOnboarding) {
-      console.log('➡️ Navigating to onboarding...');
-      router.replace('/onboarding/');
+      console.log("➡️ Navigating to onboarding...");
+      router.replace("/onboarding/");
     } else if (isOnboardingComplete && inOnboarding) {
-      console.log('➡️ Onboarding complete, navigating to paywall...');
-      router.replace('/paywall');
+      console.log("➡️ Onboarding complete, navigating to paywall...");
+      router.replace("/paywall");
     }
   }, [isInitialized, isOnboardingComplete, segments, router]);
 
   // Listen for onboarding events for immediate state updates
   useEffect(() => {
     const handleOnboardingComplete = () => {
-      console.log('📢 Onboarding completed event received');
+      console.log("📢 Onboarding completed event received");
       setIsOnboardingComplete(true);
     };
 
     const handleOnboardingReset = () => {
-      console.log('📢 Onboarding reset event received');
+      console.log("📢 Onboarding reset event received");
       setIsOnboardingComplete(false);
     };
 
@@ -167,13 +214,21 @@ export default function RootLayout() {
 
   // Hide splash screen once fonts and app state are both ready
   useEffect(() => {
-    if ((fontsLoaded || fontError) && isInitialized && isOnboardingComplete !== null) {
+    if (
+      (fontsLoaded || fontError) &&
+      isInitialized &&
+      isOnboardingComplete !== null
+    ) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError, isInitialized, isOnboardingComplete]);
 
   // Show loading screen while fonts or app state are not yet ready
-  if ((!fontsLoaded && !fontError) || !isInitialized || isOnboardingComplete === null) {
+  if (
+    (!fontsLoaded && !fontError) ||
+    !isInitialized ||
+    isOnboardingComplete === null
+  ) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -199,9 +254,9 @@ export default function RootLayout() {
         <Stack.Screen
           name="mindful-pause"
           options={{
-            presentation: 'fullScreenModal',
+            presentation: "fullScreenModal",
             headerShown: false,
-            animation: 'fade',
+            animation: "fade",
           }}
         />
       </Stack>
@@ -212,8 +267,8 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: colors.textDark,
   },
 });

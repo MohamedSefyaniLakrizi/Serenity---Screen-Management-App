@@ -15,9 +15,6 @@ export interface OnboardingData {
   dailyLimitHours: number | null;
   dailyLimitMinutes: number | null;
   
-  // Fox Companion
-  foxName: string | null;
-  
   // Permissions
   notificationsEnabled: boolean;
   screenTimePermissionGranted: boolean;
@@ -58,7 +55,6 @@ export interface OnboardingRecord {
   primary_goal: string | null;
   daily_limit_hours: number | null;
   daily_limit_minutes: number | null;
-  fox_name: string | null;
   notifications_enabled: boolean;
   screen_time_permission_granted: boolean;
   current_daily_usage_hours: number | null;

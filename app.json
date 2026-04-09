@@ -18,7 +18,9 @@
       },
       "entitlements": {
         "com.apple.developer.family-controls": true,
-        "com.apple.security.application-groups": ["group.com.msl.serenity"]
+        "com.apple.security.application-groups": [
+          "group.com.msl.serenity"
+        ]
       }
     },
     "plugins": [
@@ -26,12 +28,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/Logo.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#F8F7F4",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#13110F"
           }
         }
       ],
@@ -42,7 +41,8 @@
           "appGroup": "group.com.msl.serenity"
         }
       ],
-      "expo-video"
+      "expo-video",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

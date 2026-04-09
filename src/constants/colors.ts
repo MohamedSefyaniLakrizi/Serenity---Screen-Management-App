@@ -109,3 +109,26 @@ export const colors = {
 
 export type ColorKey = keyof typeof colors;
 
+// ─── Habit Colors ────────────────────────────────────────────────────────────
+// Per-habit color tokens — muted, consistent with the calm palette above.
+export const habitColors = {
+  screentime: { main: '#6B9E8F', light: '#8FB8AC', subtle: '#EDF5F2' }, // Sage
+  study:      { main: '#4A7FA5', light: '#7BA3BF', subtle: '#EBF3F8' }, // Steel Blue
+  fitness:    { main: '#E07A5F', light: '#EDA58E', subtle: '#FAF0EC' }, // Coral
+  sleep:      { main: '#5C5A9E', light: '#8583B8', subtle: '#EEEEF5' }, // Deep Indigo
+  prayer:     { main: '#C49A3C', light: '#D4B56A', subtle: '#FBF5E8' }, // Warm Gold
+  meditation: { main: '#5A9E8F', light: '#82B8AC', subtle: '#EDF5F2' }, // Calm Teal
+  reading:    { main: '#8B7355', light: '#AA9578', subtle: '#F4F0EB' }, // Warm Umber
+} as const;
+
+// Lucide icon name for each habit type
+export const habitIcons = {
+  screentime: 'Smartphone',
+  study:      'BookOpen',
+  fitness:    'Dumbbell',
+  sleep:      'Moon',
+  prayer:     'HandHeart',
+  meditation: 'Brain',
+  reading:    'BookText',
+} as const;
+

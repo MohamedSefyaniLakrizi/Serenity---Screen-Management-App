@@ -212,7 +212,12 @@ All stores persist to AsyncStorage via manual `loadFromStorage`/`saveToStorage` 
 ### PostHog (`src/services/posthog.ts`)
 
 - Disabled in `__DEV__` by default
-- Feature flag: `onboarding-flow-variant` (A/B testing)
+- Feature flag: `onboarding-flow-variant` — **flow controlled remotely from PostHog platform**
+  - Flag **payload** = JSON array of step names → defines the exact screen order (e.g. `["welcome","name-input","screentime-permission","daily-goal","building-plan"]`)
+  - Flag **value** = legacy variant key string (`"default"` / `"permissions-first"`) for backward compat
+  - `null` / missing payload → falls back to hard-coded `FLOW_VARIANTS.default`
+- `STEP_REGISTRY` maps every screen name to its route; PostHog payloads reference these names
+- `useRemoteOnboardingFlow()` resolves the active step list at runtime; `useOnboardingNext()` consumes it
 - Tracked events: `onboarding_screen_view`, `onboarding_step_completed`, `onboarding_step_back`, `onboarding_completed`
 
 ### App Groups Service (`src/services/appGroups.ts`)
@@ -341,10 +346,31 @@ Full palette also includes: `primaryLight/Dark/Subtle`, `secondaryLight/Subtle`,
 
 ### Architecture (`src/config/onboardingFlow.ts`)
 
-- **15-screen flow** defined as an ordered step array
-- **A/B testing** via PostHog flag `onboarding-flow-variant` (variants: `default`, `permissions-first`)
-- Steps can be conditionally skipped via `skipWhen(ctx)` callbacks
+- **15-screen flow** — step order is decided from the **PostHog platform** (no code release needed)
+- `STEP_REGISTRY` — canonical map of every screen name → `OnboardingStep` (route + name + optional `skipWhen`)
+- `FLOW_VARIANTS` — hard-coded fallback variants; used when PostHog is unavailable or payload is absent
+- `useRemoteOnboardingFlow()` — reads the PostHog flag payload as a JSON array of step names and builds the live step list; falls back to variant key string, then to `default`
 - `useOnboardingNext()` hook: `navigateNext()`, `navigatePrev()`, `progressFraction`
+- Steps can be conditionally skipped via `skipWhen(ctx)` callbacks (applied even on remotely-defined flows)
+
+#### PostHog Feature Flag Setup
+
+1. Create flag with key `onboarding-flow-variant`
+2. For each experiment variant, set the **Payload** to a JSON array of step names:
+   ```json
+   [
+     "welcome",
+     "name-input",
+     "problem-selection",
+     "screentime-permission",
+     "notification-permission",
+     "daily-goal",
+     "app-selection",
+     "building-plan"
+   ]
+   ```
+3. Valid step names (see `STEP_REGISTRY`): `welcome`, `name-input`, `name-intro`, `problem-selection`, `solution-preview`, `stats-intro`, `pause-reflect`, `mindful-sessions`, `screentime-permission`, `notification-permission`, `phone-usage`, `daily-goal`, `app-selection`, `usage-patterns`, `building-plan`
+4. Leave payload empty / `null` for the control group (uses app default flow)
 
 ### Default Flow Order
 
