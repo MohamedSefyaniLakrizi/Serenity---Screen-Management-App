@@ -1,5 +1,10 @@
-import { useEffect } from 'react';
-import { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
+import { useEffect } from "react";
+import {
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withTiming,
+} from "react-native-reanimated";
 
 interface AnimationConfig {
   duration?: number;
@@ -60,14 +65,19 @@ export function useScreenFade(duration: number = 400) {
  * @param config - Animation configuration (duration, stagger delay between elements)
  * @returns Array of animated style objects, one per element
  */
-export function useSequentialFadeIn(count: number, config: { duration?: number; stagger?: number; initialDelay?: number } = {}) {
+export function useSequentialFadeIn(
+  count: number,
+  config: { duration?: number; stagger?: number; initialDelay?: number } = {},
+) {
   const { duration = 300, stagger = 100, initialDelay = 0 } = config;
-  
+
   const animations = Array.from({ length: count }, (_, index) => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const opacity = useSharedValue(0);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const translateY = useSharedValue(20);
     const delay = initialDelay + index * stagger;
-    
+
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       if (delay > 0) {
@@ -78,13 +88,13 @@ export function useSequentialFadeIn(count: number, config: { duration?: number; 
         translateY.value = withTiming(0, { duration });
       }
     }, [duration, delay]);
-    
+
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useAnimatedStyle(() => ({
       opacity: opacity.value,
       transform: [{ translateY: translateY.value }],
     }));
   });
-  
+
   return animations;
 }

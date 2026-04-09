@@ -7,26 +7,26 @@ import { useHabitStore } from "@/store/habitStore";
 import type { Habit, HabitType } from "@/types/habits";
 import { ActivityReportView } from "activity-report";
 import {
-    BookOpen,
-    BookText,
-    Brain,
-    Crown,
-    Dumbbell,
-    Flame,
-    Hand,
-    Moon,
-    Smartphone,
-    TrendingUp,
+  BookOpen,
+  BookText,
+  Brain,
+  Crown,
+  Dumbbell,
+  Flame,
+  Hand,
+  Moon,
+  Smartphone,
+  TrendingUp,
 } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -74,6 +74,23 @@ function formatShortDate(iso: string): string {
 /** Returns approx days remaining until 60-day streak for the active habit */
 function daysUntilStack(habit: Habit): number {
   return Math.max(0, 60 - habit.streak.currentStreak);
+}
+
+/** Estimated start date for a pending habit given its queue index (0-based) */
+function estimatedPendingStartDate(
+  activeHabit: Habit | null,
+  pendingIndex: number,
+): string {
+  const daysFromNow =
+    (activeHabit ? Math.max(0, 60 - activeHabit.streak.currentStreak) : 0) +
+    pendingIndex * 60;
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 // ─── Calendar Heatmap ────────────────────────────────────────────────────────
@@ -432,6 +449,12 @@ export default function ProgressScreen() {
                     const Icon = HABIT_ICONS[habit.type];
                     const isLast = idx === arr.length - 1;
 
+                    // For pending habits, calculate their index within the pending list
+                    const pendingIndex = pendingHabits.findIndex(
+                      (h) => h.id === habit.id,
+                    );
+                    const firstActiveHabit = activeHabits[0] ?? null;
+
                     return (
                       <View key={habit.id} style={styles.timelineItem}>
                         {/* Connector line */}
@@ -557,7 +580,11 @@ export default function ProgressScreen() {
                                 { color: theme.text.tertiary },
                               ]}
                             >
-                              Starts after current habit
+                              {"~"}
+                              {estimatedPendingStartDate(
+                                firstActiveHabit,
+                                pendingIndex,
+                              )}
                             </Text>
                           )}
                         </View>

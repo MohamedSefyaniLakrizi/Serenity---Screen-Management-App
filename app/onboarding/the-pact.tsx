@@ -75,7 +75,7 @@ export default function ThePactScreen() {
         </Animated.Text>
 
         <Animated.Text style={[s.body, body2Anim]}>
-          This program works because it's strict. You're making a pact with
+          {"This program works because it's strict. You're making a pact with"}
           yourself.
         </Animated.Text>
       </View>

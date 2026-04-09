@@ -1,12 +1,12 @@
-import { colors, fontAssets } from "@/constants";
-import { AppGroupService } from "@/services/appGroups";
+import { accent, darkBg } from "@/constants/colors";
+import { BlockingService } from "@/services/blockingService";
+import { NotificationService } from "@/services/notificationService";
 import { POSTHOG_CONFIG, PostHogProvider } from "@/services/posthog";
 import { configurePurchases } from "@/services/purchases";
 import { usePurchasesStore } from "@/store/purchasesStore";
 import { useThemeStore } from "@/store/themeStore";
 import { appEvents, EVENTS } from "@/utils/events";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFonts } from "expo-font";
 import { useURL } from "expo-linking";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -23,7 +23,6 @@ import {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts(fontAssets);
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<
     boolean | null
   >(null);
@@ -36,10 +35,9 @@ export default function RootLayout() {
   // Buffer a deep link that arrives before the navigation tree is mounted.
   const pendingDeepLinkRef = useRef<string | null>(null);
 
-  // Navigate to the mindful-pause screen, buffering if not yet ready.
-  const navigateToMindfulPause = useCallback(
-    (groupId: string) => {
-      const path = `/mindful-pause?groupId=${encodeURIComponent(groupId)}`;
+  // Navigate to a screen by path, buffering if the navigation tree is not yet ready.
+  const navigateTo = useCallback(
+    (path: string) => {
       if (isInitialized && isOnboardingComplete !== null) {
         router.push(path as any);
       } else {
@@ -49,17 +47,25 @@ export default function RootLayout() {
     [isInitialized, isOnboardingComplete, router],
   );
 
-  // Handle deep links (e.g. serenity://mindful-pause?groupId=xxx from shield button)
+  // Handle deep links from shield buttons — maps serenity:// scheme to app routes.
   useEffect(() => {
     if (!deepLinkUrl) return;
     try {
       const url = new URL(deepLinkUrl);
-      if (url.hostname === "mindful-pause") {
-        const groupId = url.searchParams.get("groupId") ?? "";
-        navigateToMindfulPause(groupId);
+      const routes: Record<string, string> = {
+        "mindful-pause": "/mindful-pause",
+        "study-timer": "/study-timer",
+        "meditation-timer": "/meditation-timer",
+        "reading-timer": "/reading-timer",
+        "fitness-status": "/fitness-status",
+        "prayer-status": "/prayer-status",
+      };
+      const route = routes[url.hostname];
+      if (route) {
+        navigateTo(route);
       }
     } catch {}
-  }, [deepLinkUrl, navigateToMindfulPause]);
+  }, [deepLinkUrl, navigateTo]);
 
   // Flush any buffered deep link once the navigation tree is ready.
   useEffect(() => {
@@ -90,29 +96,60 @@ export default function RootLayout() {
 
   // Setup daily reset timer and app state listener
   useEffect(() => {
-    // Setup app state listener for reapplying blocking
-    AppGroupService.setupAppStateListener();
-
-    // Function to check if we need to reset daily unlocks
+    // Re-evaluate blocking whenever the app comes to the foreground
     const checkDailyReset = async () => {
       try {
-        await AppGroupService.resetDailyUnlocks();
+        const today = new Date().toISOString().split("T")[0];
+        const lastResetKey = "@lastDailyReset";
+        const lastReset = await AsyncStorage.getItem(lastResetKey);
+        const { useHabitStore } = await import("@/store/habitStore");
+        const habitStore = useHabitStore.getState();
+
+        if (lastReset !== today) {
+          // New day — reset completions, update streaks, re-block apps
+          await AsyncStorage.setItem(lastResetKey, today);
+          habitStore.resetDailyCompletions();
+          habitStore.updateStreaks(today);
+          await BlockingService.resetForNewDay();
+        } else {
+          // Same day — re-evaluate blocking on foreground
+          await BlockingService.onAppForeground();
+
+          // Auto-complete fitness habit if HealthKit goal is already met
+          const fitnessHabit = habitStore
+            .getActiveHabits()
+            .find((h) => h.type === "fitness" && !h.dailyCompletion.completed);
+          if (fitnessHabit) {
+            import("@/services/habits/fitnessHabit")
+              .then(({ FitnessHabitService }) =>
+                FitnessHabitService.autoCheckAndComplete(
+                  fitnessHabit.id,
+                  fitnessHabit.config as import("@/types/habits").FitnessConfig,
+                ),
+              )
+              .catch(() => {});
+          }
+        }
+
+        // Check whether any habit has crossed the 60-day stacking threshold
+        habitStore.checkAndActivateNextHabit();
+
+        // Refresh notification schedule to reflect current state
+        await NotificationService.refreshSchedule();
       } catch (error) {
-        console.error("Error resetting daily unlocks:", error);
+        console.error("Error in daily reset / foreground check:", error);
       }
     };
 
     // Check on app launch
     checkDailyReset();
 
-    // Check when app comes to foreground
+    // Re-check when app returns to foreground
     const subscription = AppState.addEventListener(
       "change",
       (nextAppState: AppStateStatus) => {
         if (nextAppState === "active") {
           checkDailyReset();
-          // Sync unlock counts from shield extension
-          AppGroupService.syncUnlockCounts();
         }
       },
     );
@@ -150,9 +187,17 @@ export default function RootLayout() {
       await Promise.all([
         checkOnboardingStatus(),
         loadTheme(),
-        // Rewrite all shield configs to UserDefaults so that any code changes
-        // to colours / quotes / emoji are reflected immediately for existing groups.
-        AppGroupService.refreshAllShieldConfigs(),
+        // Load habits and re-evaluate blocking state on every cold start so
+        // the shield message is always current.
+        (async () => {
+          const { useHabitStore } = await import("@/store/habitStore");
+          await useHabitStore.getState().loadFromStorage();
+          await BlockingService.onAppForeground();
+          // Check stacking milestones after loading persisted state
+          useHabitStore.getState().checkAndActivateNextHabit();
+          // Ensure notification schedule is current
+          await NotificationService.refreshSchedule();
+        })(),
         // Configure RevenueCat SDK. Any errors here are non-fatal.
         configurePurchases()
           .then(() => {
@@ -184,7 +229,7 @@ export default function RootLayout() {
     // Route to appropriate location
     if (!isOnboardingComplete && !inOnboarding) {
       console.log("➡️ Navigating to onboarding...");
-      router.replace("/onboarding/");
+      router.replace("/onboarding");
     } else if (isOnboardingComplete && inOnboarding) {
       console.log("➡️ Onboarding complete, navigating to paywall...");
       router.replace("/paywall");
@@ -212,26 +257,18 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Hide splash screen once fonts and app state are both ready
+  // Hide splash screen once app state is ready
   useEffect(() => {
-    if (
-      (fontsLoaded || fontError) &&
-      isInitialized &&
-      isOnboardingComplete !== null
-    ) {
+    if (isInitialized && isOnboardingComplete !== null) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, isInitialized, isOnboardingComplete]);
+  }, [isInitialized, isOnboardingComplete]);
 
-  // Show loading screen while fonts or app state are not yet ready
-  if (
-    (!fontsLoaded && !fontError) ||
-    !isInitialized ||
-    isOnboardingComplete === null
-  ) {
+  // Show loading screen while app state is not yet ready
+  if (!isInitialized || isOnboardingComplete === null) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={accent.primary} />
       </View>
     );
   }
@@ -244,11 +281,11 @@ export default function RootLayout() {
         disabled: POSTHOG_CONFIG.disabled,
       }}
     >
-      <StatusBar style="dark" backgroundColor={colors.background} />
+      <StatusBar style="dark" backgroundColor={darkBg.primary} />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
+          contentStyle: { backgroundColor: darkBg.primary },
         }}
       >
         <Stack.Screen
@@ -269,6 +306,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.textDark,
+    backgroundColor: darkBg.primary,
   },
 });

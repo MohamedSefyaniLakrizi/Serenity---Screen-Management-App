@@ -14,11 +14,13 @@
       "bundleIdentifier": "com.msl.serenity",
       "buildNumber": "1.0.0",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHealthShareUsageDescription": "Serenity reads your fitness data to verify your daily workout goals."
       },
       "entitlements": {
         "com.apple.developer.family-controls": true,
-        "com.apple.security.application-groups": ["group.com.msl.serenity"]
+        "com.apple.security.application-groups": ["group.com.msl.serenity"],
+        "com.apple.developer.healthkit": true
       }
     },
     "plugins": [

@@ -143,7 +143,9 @@ export default function HabitSelectionScreen() {
           Choose Your Habits
         </Animated.Text>
         <Animated.Text style={[s.subtitle, subtitleAnim]}>
-          Select the habits you want to build. You'll focus on one at a time.
+          {
+            "Select the habits you want to build. You'll focus on one at a time."
+          }
         </Animated.Text>
 
         <Animated.View style={gridAnim}>

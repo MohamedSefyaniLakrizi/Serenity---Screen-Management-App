@@ -1,29 +1,28 @@
-import { Button } from '@/components/ui';
-import { spacing, typography } from '@/constants';
-import { FONTS } from '@/constants/typography';
-import { useSequentialFadeIn } from '@/hooks/useOnboardingAnimation';
-import { useOnboardingNext } from '@/hooks/useOnboardingNext';
-import { useThemedColors } from '@/hooks/useThemedStyles';
-import { useOnboardingStore } from '@/store/onboardingStore';
-import * as Notifications from 'expo-notifications';
-import { router } from 'expo-router';
-import LottieView from 'lottie-react-native';
-import { Bell, ChevronLeft } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Platform,
-  StatusBar,
-  StyleSheet,
-  TouchableOpacity,
-  View
-} from 'react-native';
-import Animated from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button } from "@/components/ui";
 
-const ANIMATION_SOURCE = require('../../assets/videos/Notification-Animation.json');
+import { useSequentialFadeIn } from "@/hooks/useOnboardingAnimation";
+import { useOnboardingNext } from "@/hooks/useOnboardingNext";
+import { useThemedColors } from "@/hooks/useThemedStyles";
+import { useOnboardingStore } from "@/store/onboardingStore";
+import * as Notifications from "expo-notifications";
+import { router } from "expo-router";
+import LottieView from "lottie-react-native";
+import { Bell, ChevronLeft } from "lucide-react-native";
+import React, { useRef, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Linking,
+    Platform,
+    StatusBar,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import Animated from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+const ANIMATION_SOURCE = require("../../assets/videos/Notification-Animation.json");
 
 export default function Step5NotificationPermission() {
   const theme = useThemedColors();
@@ -31,42 +30,50 @@ export default function Step5NotificationPermission() {
   const [isLoading, setIsLoading] = useState(false);
   const lottieRef = useRef<LottieView>(null);
 
-  const { progressFraction } = useOnboardingNext('/onboarding/notification-permission');
-  const [screenFade, lottieAnimation, titleAnimation, subtitleAnimation, buttonAnimation] =
-    useSequentialFadeIn(5, { duration: 300, stagger: 350 });
+  const { progressFraction } = useOnboardingNext(
+    "/onboarding/notification-permission",
+  );
+  const [
+    screenFade,
+    lottieAnimation,
+    titleAnimation,
+    subtitleAnimation,
+    buttonAnimation,
+  ] = useSequentialFadeIn(5, { duration: 300, stagger: 350 });
 
   const requestNotificationPermission = async () => {
     setIsLoading(true);
     try {
-      if (Platform.OS === 'ios') {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      if (Platform.OS === "ios") {
+        const { status: existingStatus } =
+          await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
 
-        if (existingStatus !== 'granted') {
+        if (existingStatus !== "granted") {
           const { status } = await Notifications.requestPermissionsAsync();
           finalStatus = status;
         }
 
-        if (finalStatus === 'granted') {
+        if (finalStatus === "granted") {
           updateData({ notificationsEnabled: true });
-          router.push('/onboarding/phone-usage');
+          router.push("/onboarding/phone-usage");
         } else {
           Alert.alert(
-            'Permission Required',
-            'Serenity needs notification permission to send you mindful reminders and help you stay on track with your goals.',
+            "Permission Required",
+            "Serenity needs notification permission to send you mindful reminders and help you stay on track with your goals.",
             [
-              { text: 'Open Settings', onPress: () => Linking.openSettings() },
-              { text: 'Try Again', onPress: requestNotificationPermission },
-            ]
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+              { text: "Try Again", onPress: requestNotificationPermission },
+            ],
           );
         }
       }
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      console.error("Error requesting notification permission:", error);
       Alert.alert(
-        'Something went wrong',
-        'There was an error requesting notification access. Please try again.',
-        [{ text: 'Try Again', onPress: requestNotificationPermission }]
+        "Something went wrong",
+        "There was an error requesting notification access. Please try again.",
+        [{ text: "Try Again", onPress: requestNotificationPermission }],
       );
     } finally {
       setIsLoading(false);
@@ -77,16 +84,22 @@ export default function Step5NotificationPermission() {
 
   return (
     <Animated.View style={[s.container, screenFade]}>
-      <SafeAreaView style={s.safeArea} edges={['top']}>
+      <SafeAreaView style={s.safeArea} edges={["top"]}>
         <StatusBar barStyle={theme.statusBar} />
 
         {/* ── Header: back + progress ── */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backButton} onPress={() => router.back()} activeOpacity={0.7}>
-            <ChevronLeft size={22} color={theme.textPrimary} strokeWidth={2} />
+          <TouchableOpacity
+            style={s.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={22} color={theme.text.primary} strokeWidth={2} />
           </TouchableOpacity>
           <View style={s.progressTrack}>
-            <View style={[s.progressFill, { width: `${progressFraction * 100}%` }]} />
+            <View
+              style={[s.progressFill, { width: `${progressFraction * 100}%` }]}
+            />
           </View>
         </View>
 
@@ -99,7 +112,10 @@ export default function Step5NotificationPermission() {
             Gentle reminders only
           </Animated.Text>
           <Animated.Text style={[s.subtitle, subtitleAnimation]}>
-            We'll notify you exactly when you need it—like hitting your screen time limit.
+            {
+              "We'll notify you exactly when you need it—like hitting your screen"
+            }
+            time limit.
           </Animated.Text>
         </View>
 
@@ -118,13 +134,21 @@ export default function Step5NotificationPermission() {
         <Animated.View style={[s.actions, buttonAnimation]}>
           <Button
             size="large"
-            title={isLoading ? 'Requesting…' : 'Enable Notifications'}
+            title={isLoading ? "Requesting…" : "Enable Notifications"}
             onPress={requestNotificationPermission}
             disabled={isLoading}
-            icon={isLoading ? undefined : <Bell size={18} color="#fff" strokeWidth={2} />}
+            icon={
+              isLoading ? undefined : (
+                <Bell size={18} color="#fff" strokeWidth={2} />
+              )
+            }
           />
           {isLoading && (
-            <ActivityIndicator size="small" color={theme.primary} style={s.loader} />
+            <ActivityIndicator
+              size="small"
+              color={theme.accent.primary}
+              style={s.loader}
+            />
           )}
         </Animated.View>
       </SafeAreaView>
@@ -136,7 +160,7 @@ const styles = (theme: ReturnType<typeof useThemedColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: theme.bg.primary,
     },
     safeArea: {
       flex: 1,
@@ -144,26 +168,26 @@ const styles = (theme: ReturnType<typeof useThemedColors>) =>
 
     // Header
     header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xl,
-      paddingBottom: spacing.md,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+      paddingHorizontal: 24,
+      paddingTop: 32,
+      paddingBottom: 20,
     },
     backButton: {
-      padding: spacing.xs,
+      padding: 8,
     },
     progressTrack: {
       flex: 1,
       height: 6,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.bg.subtle,
       borderRadius: 3,
-      overflow: 'hidden',
+      overflow: "hidden",
     },
     progressFill: {
-      height: '100%',
-      backgroundColor: theme.primary,
+      height: "100%",
+      backgroundColor: theme.accent.primary,
       borderRadius: 3,
     },
 
@@ -174,42 +198,40 @@ const styles = (theme: ReturnType<typeof useThemedColors>) =>
 
     // Lottie
     lottieWrapper: {
-      width: '85%',
-      alignSelf: 'center' as const,
+      width: "85%",
+      alignSelf: "center" as const,
       aspectRatio: 1,
     },
     lottie: {
-      width: '100%',
+      width: "100%",
       aspectRatio: 1,
     },
 
     // Text
     textBlock: {
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.lg,
-      gap: spacing.xs,
+      paddingHorizontal: 24,
+      paddingBottom: 24,
+      gap: 8,
     },
     title: {
-      fontFamily: FONTS.loraBold,
-      fontSize: typography.sizes.h1,
-      color: theme.textPrimary,
-      textAlign: 'center',
-      lineHeight: typography.sizes.h1 * 1.25,
+      fontSize: 28,
+      color: theme.text.primary,
+      textAlign: "center",
+      lineHeight: 35,
     },
     subtitle: {
-      fontFamily: FONTS.interRegular,
-      fontSize: typography.sizes.bodyLarge,
-      color: theme.textSecondary,
-      textAlign: 'center',
-      lineHeight: typography.sizes.bodyLarge * 1.55,
+      fontSize: 17,
+      color: theme.text.secondary,
+      textAlign: "center",
+      lineHeight: 26,
     },
 
     // CTA
     actions: {
-      padding: spacing.lg,
-      paddingBottom: spacing.xxl,
+      padding: 24,
+      paddingBottom: 40,
     },
     loader: {
-      marginTop: spacing.sm,
+      marginTop: 16,
     },
   });

@@ -1,13 +1,13 @@
-import { borderRadius, colors, spacing, typography } from '@/constants';
-import React from 'react';
+import { borderRadius } from "@/constants";
+import React from "react";
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TextInputProps,
-    View,
-    ViewStyle,
-} from 'react-native';
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputProps,
+  View,
+  ViewStyle,
+} from "react-native";
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -31,71 +31,69 @@ export default function Input({
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      
+
       <View style={[styles.inputContainer, error && styles.inputError]}>
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
-        
+
         <TextInput
           style={[styles.input, style]}
-          placeholderTextColor={colors.textLight}
+          placeholderTextColor="#71717A"
           {...props}
         />
-        
+
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </View>
-      
+
       {error && <Text style={styles.error}>{error}</Text>}
-      {!error && helperText && <Text style={styles.helperText}>{helperText}</Text>}
+      {!error && helperText && (
+        <Text style={styles.helperText}>{helperText}</Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
+    width: "100%",
   },
   label: {
-    fontSize: typography.small,
-    fontFamily: typography.fontSecondary,
-    fontWeight: typography.medium,
-    color: colors.textDark,
-    marginBottom: spacing.xs,
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#F5F5F5",
+    marginBottom: 8,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: borderRadius.small,
-    paddingHorizontal: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: "#27272A",
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: 16,
   },
   inputError: {
-    borderColor: colors.error,
+    borderColor: "#EF4444",
   },
   input: {
     flex: 1,
-    paddingVertical: spacing.sm,
-    fontSize: typography.body,
-    fontFamily: typography.fontSecondary,
-    color: colors.textDark,
+    paddingVertical: 16,
+    fontSize: 17,
+    color: "#F5F5F5",
   },
   leftIcon: {
-    marginRight: spacing.xs,
+    marginRight: 8,
   },
   rightIcon: {
-    marginLeft: spacing.xs,
+    marginLeft: 8,
   },
   error: {
-    fontSize: typography.tiny,
-    fontFamily: typography.fontSecondary,
-    color: colors.error,
-    marginTop: spacing.xs / 2,
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 4,
   },
   helperText: {
-    fontSize: typography.tiny,
-    fontFamily: typography.fontSecondary,
-    color: colors.textGray,
-    marginTop: spacing.xs / 2,
+    fontSize: 12,
+    color: "#71717A",
+    marginTop: 4,
   },
 });

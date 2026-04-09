@@ -1,43 +1,40 @@
-import { borderRadius, shadows, spacing } from '@/constants';
-import { useThemedColors } from '@/hooks/useThemedStyles';
-import React from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
+import { borderRadius, shadows } from "@/constants";
+import { useThemedColors } from "@/hooks/useThemedStyles";
+import React from "react";
+import { StyleSheet, View, ViewStyle } from "react-native";
 
 interface CardProps {
   children: React.ReactNode;
-  variant?: 'default' | 'elevated' | 'outlined';
-  padding?: keyof typeof spacing;
+  variant?: "default" | "elevated" | "outlined";
+  padding?: number;
   style?: ViewStyle;
 }
 
 export default function Card({
   children,
-  variant = 'default',
-  padding = 'lg',
+  variant = "default",
+  padding = 16,
   style,
 }: CardProps) {
   const themedColors = useThemedColors();
-  
+
   const getShadowStyle = () => {
-    if (variant === 'outlined') return {};
-    
-    const shadowIntensity = variant === 'elevated' ? 'medium' : 'small';
-    const baseStyle = shadows[shadowIntensity];
-    
-    return {
-      ...baseStyle,
-      shadowColor: themedColors.shadow,
-    };
+    if (variant === "outlined") return {};
+    const shadowIntensity = variant === "elevated" ? "medium" : "small";
+    return shadows[shadowIntensity];
   };
-  
+
   return (
     <View
       style={[
         styles.base,
-        { backgroundColor: themedColors.surface },
+        { backgroundColor: themedColors.bg.elevated },
         getShadowStyle(),
-        variant === 'outlined' && [styles.outlined, { borderColor: themedColors.border }],
-        { padding: spacing[padding] },
+        variant === "outlined" && [
+          styles.outlined,
+          { borderColor: themedColors.border.default },
+        ],
+        { padding },
         style,
       ]}
     >
@@ -48,9 +45,9 @@ export default function Card({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: borderRadius.large,
+    borderRadius: borderRadius.lg,
   },
   outlined: {
-    borderWidth: 2,
+    borderWidth: 1,
   },
 });

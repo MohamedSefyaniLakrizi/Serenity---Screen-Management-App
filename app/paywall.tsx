@@ -14,20 +14,20 @@
  * The screen self-dismisses after a successful purchase/restore.
  */
 
-import { colors } from '@/constants';
-import { useRevenueCat } from '@/hooks/useRevenueCat';
-import { useRouter } from 'expo-router';
-import React, { useCallback } from 'react';
+import { accent, darkBg, darkText } from "@/constants/colors";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
+import { useRouter } from "expo-router";
+import React, { useCallback } from "react";
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { CustomerInfo } from 'react-native-purchases';
-import RevenueCatUI from 'react-native-purchases-ui';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { CustomerInfo } from "react-native-purchases";
+import RevenueCatUI from "react-native-purchases-ui";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PaywallScreen() {
   const router = useRouter();
@@ -37,29 +37,35 @@ export default function PaywallScreen() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/(tabs)/' as any);
+      router.replace("/(tabs)/" as any);
     }
   }, [router]);
 
   // Called when the user successfully completes a purchase.
   const handlePurchaseCompleted = useCallback(
     async ({ customerInfo }: { customerInfo: CustomerInfo }) => {
-      console.log('[Paywall] Purchase completed:', customerInfo.entitlements.active);
+      console.log(
+        "[Paywall] Purchase completed:",
+        customerInfo.entitlements.active,
+      );
       // Refresh the store so isPro updates everywhere.
       await refresh();
       navigateAway();
     },
-    [refresh, navigateAway]
+    [refresh, navigateAway],
   );
 
   // Called when the user successfully restores purchases.
   const handleRestoreCompleted = useCallback(
     async ({ customerInfo }: { customerInfo: CustomerInfo }) => {
-      console.log('[Paywall] Restore completed:', customerInfo.entitlements.active);
+      console.log(
+        "[Paywall] Restore completed:",
+        customerInfo.entitlements.active,
+      );
       await refresh();
       navigateAway();
     },
-    [refresh, navigateAway]
+    [refresh, navigateAway],
   );
 
   // Called when the user dismisses the paywall without purchasing.
@@ -70,7 +76,7 @@ export default function PaywallScreen() {
   if (isLoading || !currentOffering) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={accent.primary} />
         <Text style={styles.loadingText}>Loading plans…</Text>
       </SafeAreaView>
     );
@@ -79,8 +85,12 @@ export default function PaywallScreen() {
   return (
     <View style={styles.container}>
       {/* Close button for accessibility / hard-paywall avoidance */}
-      <SafeAreaView style={styles.closeRow} edges={['top']}>
-        <TouchableOpacity onPress={handleDismiss} style={styles.closeButton} accessibilityLabel="Close paywall">
+      <SafeAreaView style={styles.closeRow} edges={["top"]}>
+        <TouchableOpacity
+          onPress={handleDismiss}
+          style={styles.closeButton}
+          accessibilityLabel="Close paywall"
+        >
           <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -91,7 +101,7 @@ export default function PaywallScreen() {
         onRestoreCompleted={handleRestoreCompleted}
         onPurchaseCancelled={handleDismiss}
         onPurchaseError={({ error }) => {
-          console.error('[Paywall] Purchase error:', error);
+          console.error("[Paywall] Purchase error:", error);
         }}
         onDismiss={handleDismiss}
       />
@@ -102,21 +112,21 @@ export default function PaywallScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: darkBg.primary,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: darkBg.primary,
     gap: 12,
   },
   loadingText: {
-    color: colors.textSecondary,
+    color: darkText.secondary,
     fontSize: 16,
   },
   closeRow: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     right: 0,
     zIndex: 10,
@@ -126,14 +136,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 8,
   },
   closeText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

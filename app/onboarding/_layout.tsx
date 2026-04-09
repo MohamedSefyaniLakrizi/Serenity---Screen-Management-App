@@ -1,6 +1,6 @@
 import {
-  OnboardingRoutePath,
-  useRemoteOnboardingFlow,
+    OnboardingRoutePath,
+    useRemoteOnboardingFlow,
 } from "@/config/onboardingFlow";
 import { useThemedColors } from "@/hooks/useThemedStyles";
 import { Stack, useSegments } from "expo-router";
@@ -40,7 +40,7 @@ export default function OnboardingLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: theme.background },
+          contentStyle: { backgroundColor: theme.bg.primary },
           animation: "none",
         }}
       />

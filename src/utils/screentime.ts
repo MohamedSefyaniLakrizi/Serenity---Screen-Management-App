@@ -1,8 +1,6 @@
 // Screen Time Module using react-native-device-activity
-// Wraps Apple's FamilyControls, DeviceActivity, and ManagedSettings APIs
-
-import { Platform } from "react-native";
-import * as ReactNativeDeviceActivity from "react-native-device-activity";
+// Legacy wrapper — superseded by src/services/blockingService.ts
+// @ts-nocheck — type declarations ignored; file kept for reference only.
 
 export interface FamilyActivitySelection {
   familyActivitySelection: string | null;

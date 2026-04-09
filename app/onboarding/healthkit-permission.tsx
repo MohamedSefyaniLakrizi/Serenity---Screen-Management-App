@@ -115,7 +115,7 @@ export default function HealthKitPermissionScreen() {
           </Animated.Text>
           <Animated.Text style={[s.subtitle, subtitleAnim]}>
             Serenity needs to read your fitness data to verify your workout
-            goals and unlock your apps when you're done.
+            {"goals and unlock your apps when you're done."}
           </Animated.Text>
 
           {/* Feature list */}

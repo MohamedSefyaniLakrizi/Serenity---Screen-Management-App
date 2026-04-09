@@ -23,6 +23,8 @@ interface HabitStoreState {
   blockedAppsSelection: string | null; // FamilyActivitySelection token
   blockedAppsCount: { apps: number; categories: number };
   isInitialized: boolean;
+  /** Transient: set when a habit graduates to 'stacked'. Cleared after the user dismisses the celebration. Not persisted. */
+  pendingStackingEvent: { graduated: Habit; activated: Habit | null } | null;
 }
 
 interface HabitStoreActions {
@@ -54,6 +56,7 @@ interface HabitStoreActions {
     graduated: Habit | null;
     activated: Habit | null;
   } | null;
+  clearStackingEvent(): void;
 
   // Queries
   getActiveHabits(): Habit[];
@@ -118,6 +121,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
   blockedAppsSelection: null,
   blockedAppsCount: { apps: 0, categories: 0 },
   isInitialized: false,
+  pendingStackingEvent: null,
 
   // ── Persistence ─────────────────────────────────────────────────────────
 
@@ -341,20 +345,23 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     const { habits } = get();
     const now = nowISO();
 
-    // Find first active habit that has hit the 60-day streak threshold
-    const graduating = habits.find(
+    // Find all active habits that have hit the 60-day streak threshold
+    const graduating = habits.filter(
       (h) => h.status === "active" && h.streak.currentStreak >= 60,
     );
 
-    if (!graduating) return null;
+    if (graduating.length === 0) return null;
 
-    // Find first pending habit sorted by priority
+    // Graduate every qualifying active habit
+    const graduatingIds = new Set(graduating.map((h) => h.id));
+
+    // Find first pending habit sorted by priority (to activate after graduation)
     const nextPending = [...habits]
       .filter((h) => h.status === "pending")
       .sort((a, b) => a.priority - b.priority)[0];
 
     const updatedHabits = habits.map((h) => {
-      if (h.id === graduating.id) {
+      if (graduatingIds.has(h.id)) {
         return { ...h, status: "stacked" as HabitStatus, stackedAt: now };
       }
       if (nextPending && h.id === nextPending.id) {
@@ -363,20 +370,29 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       return h;
     });
 
-    set({ habits: updatedHabits });
+    // Use the first graduating habit for the celebration event
+    const primaryGraduated: Habit = {
+      ...graduating[0],
+      status: "stacked" as HabitStatus,
+      stackedAt: now,
+    };
+    const activatedHabit: Habit | null = nextPending
+      ? { ...nextPending, status: "active" as HabitStatus, activatedAt: now }
+      : null;
+
+    set({
+      habits: updatedHabits,
+      pendingStackingEvent: {
+        graduated: primaryGraduated,
+        activated: activatedHabit,
+      },
+    });
     get().saveToStorage();
 
-    return {
-      graduated: {
-        ...graduating,
-        status: "stacked" as HabitStatus,
-        stackedAt: now,
-      },
-      activated: nextPending
-        ? { ...nextPending, status: "active" as HabitStatus, activatedAt: now }
-        : null,
-    };
+    return { graduated: primaryGraduated, activated: activatedHabit };
   },
+
+  clearStackingEvent: () => set({ pendingStackingEvent: null }),
 
   // ── Queries ────────────────────────────────────────────────────────────
 

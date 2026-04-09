@@ -26,6 +26,80 @@ export type OnboardingEventName =
   | 'onboarding_completed'
   | 'onboarding_abandoned';
 
+// ── Habit event names ────────────────────────────────────────────────────────
+
+export type HabitEventName =
+  | 'habit_completed'
+  | 'habit_stacked'
+  | 'habit_activated'
+  | 'streak_milestone'
+  | 'timer_started'
+  | 'timer_completed'
+  | 'oath_confirmed'
+  | 'prayer_confirmed'
+  | 'blocking_triggered'
+  | 'apps_unlocked'
+  | 'pact_accepted';
+
+export type EventName = OnboardingEventName | HabitEventName;
+
+// ── Habit event property shapes ──────────────────────────────────────────────
+
+export interface HabitCompletedProps {
+  habitType: string;
+  method: string;
+  streakCount: number;
+}
+
+export interface HabitStackedProps {
+  habitType: string;
+  streakDays: number;
+}
+
+export interface HabitActivatedProps {
+  habitType: string;
+  priority: number;
+}
+
+export interface StreakMilestoneProps {
+  days: number;
+  habitType: string;
+}
+
+export interface TimerStartedProps {
+  habitType: string;
+  goalMinutes: number;
+}
+
+export interface TimerCompletedProps {
+  habitType: string;
+  durationMinutes: number;
+}
+
+export interface OathConfirmedProps {
+  habitType: string;
+  context: string;
+}
+
+export interface PrayerConfirmedProps {
+  prayerName: string;
+  religion: string;
+}
+
+export interface BlockingTriggeredProps {
+  reason: string; // habitType | 'sleep' | 'screentime_exceeded'
+}
+
+export interface AppsUnlockedProps {
+  allHabitsCompleted: true;
+}
+
+export interface PactAcceptedProps {
+  habitCount: number;
+}
+
+// ── Onboarding event property shapes ────────────────────────────────────────
+
 export interface OnboardingScreenViewProps {
   screen_name: string;
   step_index: number;

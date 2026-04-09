@@ -5,5 +5,5 @@ import { Redirect } from "expo-router";
  * Onboarding check happens in _layout.tsx
  */
 export default function Index() {
-  return <Redirect href="/(tabs)/" />;
+  return <Redirect href="/(tabs)" />;
 }

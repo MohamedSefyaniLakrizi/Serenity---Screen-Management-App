@@ -1,25 +1,33 @@
-import { borderRadius, colors, spacing, typography } from '@/constants';
-import React from 'react';
-import { StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { borderRadius } from "@/constants";
+import { accent, darkBg, status } from "@/constants/colors";
+import React from "react";
+import { StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
 
 interface BadgeProps {
   text: string;
-  variant?: 'primary' | 'secondary' | 'success' | 'error';
-  size?: 'small' | 'medium';
+  variant?: "primary" | "secondary" | "success" | "error";
+  size?: "small" | "medium";
   style?: ViewStyle;
   textStyle?: TextStyle;
 }
 
 export default function Badge({
   text,
-  variant = 'primary',
-  size = 'medium',
+  variant = "primary",
+  size = "medium",
   style,
   textStyle,
 }: BadgeProps) {
   return (
     <View style={[styles.base, styles[variant], styles[`${size}Size`], style]}>
-      <Text style={[styles.text, styles[`${variant}Text`], styles[`${size}Text`], textStyle]}>
+      <Text
+        style={[
+          styles.text,
+          styles[`${variant}Text`],
+          styles[`${size}Text`],
+          textStyle,
+        ]}
+      >
         {text}
       </Text>
     </View>
@@ -29,54 +37,53 @@ export default function Badge({
 const styles = StyleSheet.create({
   base: {
     borderRadius: borderRadius.full,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
 
   // Variants
   primary: {
-    backgroundColor: colors.primary,
+    backgroundColor: accent.primary,
   },
   secondary: {
-    backgroundColor: colors.secondary,
+    backgroundColor: accent.subtle,
   },
   success: {
-    backgroundColor: colors.success,
+    backgroundColor: status.success,
   },
   error: {
-    backgroundColor: colors.error,
+    backgroundColor: status.error,
   },
 
   // Sizes
   smallSize: {
     paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 16,
   },
   mediumSize: {
     paddingVertical: 10,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 20,
   },
 
   // Text
   text: {
-    fontFamily: typography.fontPrimary,
-    fontWeight: typography.semibold,
+    fontWeight: "600",
   },
   primaryText: {
-    color: colors.surface,
+    color: "#FFFFFF",
   },
   secondaryText: {
-    color: colors.textDark,
+    color: darkBg.primary,
   },
   successText: {
-    color: colors.surface,
+    color: "#FFFFFF",
   },
   errorText: {
-    color: colors.surface,
+    color: "#FFFFFF",
   },
   smallText: {
-    fontSize: typography.tiny,
+    fontSize: 12,
   },
   mediumText: {
-    fontSize: typography.small,
+    fontSize: 13,
   },
 });

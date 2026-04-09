@@ -1,150 +1,80 @@
 /**
  * Mindful Pause Screen
  *
- * Opens via deep link: serenity://mindful-pause?groupId=<id>
+ * Opens via deep link: serenity://mindful-pause (no group ID needed).
  *
- * – LIMITED group  → user must hold the button for 5 s (with haptic rhythm)
- *                    before iOS lifts the shield. Decrement unlock count.
- * – BLOCKED group  → single tap closes the screen (shield stays active).
+ * Shows the first uncompleted habit and routes the user to the appropriate
+ * habit action screen (study timer, meditation timer, prayer status, etc.).
  *
  * Design language: liquid glass — nature video bg, animated gradient blobs,
- * BlurView overlay, Lottie brand logo, Lora serif headings.
+ * BlurView overlay, Serenity brand logo.
  */
 
-import { AppGroup, AppGroupService } from "@/services/appGroups";
+import { ShieldService } from "@/services/shieldService";
+import { useHabitStore } from "@/store/habitStore";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import React, { useEffect, useMemo } from "react";
 import {
-    Dimensions,
-    Image,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Dimensions,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { unblockSelection } from "react-native-device-activity";
 import Animated, {
-    Easing,
-    useAnimatedProps,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withTiming,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle } from "react-native-svg";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const { width: W, height: H } = Dimensions.get("window");
-const HOLD_DURATION_MS = 5_000;
-const RING_RADIUS = 44;
-const RING_STROKE = 4;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const { width: W } = Dimensions.get("window");
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+// ─── Habit route map ──────────────────────────────────────────────────────────
 
-// Motivating messages for the limited-mode countdown
-const COUNTDOWN_PHRASES = [
-  "Breathe in slowly…",
-  "Feel the stillness…",
-  "You are in control.",
-  "Almost there…",
-  "One last breath…",
-];
-
-// Random quotes shown on blocked / no-unlocks screen
-const BLOCKED_QUOTES = [
-  '"Almost everything will work again if you unplug it for a few minutes, including you."\n\u2014 Anne Lamott',
-  '"The present moment is the only moment available to us, and it is the door to all moments."\n\u2014 Thich Nhat Hanh',
-  '"You have power over your mind, not outside events. Realise this and you will find strength."\n\u2014 Marcus Aurelius',
-  '"Disconnecting from technology is the first step to reconnecting with yourself."',
-  '"In the depth of winter, I finally learned that within me there lay an invincible summer."\n\u2014 Albert Camus',
-  '"Every moment of resistance to temptation is a victory."\n\u2014 Frederick William Faber',
-  '"What you pay attention to grows. Pay attention to what matters."',
-  '"Rest is not idleness. It is the work of a different kind."',
-  '"You don\'t have to scroll to feel alive."',
-  '"Small disciplines repeated with consistency every day lead to great achievements."\n\u2014 John C. Maxwell',
-];
-
-// ─── Dev testing helpers ─────────────────────────────────────────────────────
-// Pass groupId="__dev_limited__" or "__dev_blocked__" to bypass storage
-// and render the screen with canned mock data.
-
-const DEV_MOCK_GROUPS: Record<string, AppGroup> = {
-  __dev_limited__: {
-    id: "__dev_limited__",
-    name: "Social Media",
-    apps: [],
-    sessionLength: 30,
-    dailyUnlocks: 3,
-    currentUnlocks: 2, // 2 remaining
-    isBlocked: false,
-    createdAt: new Date().toISOString(),
-    lastReset: new Date().toISOString().split("T")[0],
-  },
-  __dev_blocked__: {
-    id: "__dev_blocked__",
-    name: "Games",
-    apps: [],
-    sessionLength: 0,
-    dailyUnlocks: 0,
-    currentUnlocks: 0,
-    isBlocked: true,
-    createdAt: new Date().toISOString(),
-    lastReset: new Date().toISOString().split("T")[0],
-  },
-  __dev_no_unlocks__: {
-    id: "__dev_no_unlocks__",
-    name: "Social Media",
-    apps: [],
-    sessionLength: 30,
-    dailyUnlocks: 3,
-    currentUnlocks: 0, // all used up
-    isBlocked: false,
-    createdAt: new Date().toISOString(),
-    lastReset: new Date().toISOString().split("T")[0],
-  },
+const HABIT_ROUTES: Record<string, string> = {
+  study: "/study-timer",
+  meditation: "/meditation-timer",
+  reading: "/reading-timer",
+  fitness: "/fitness-status",
+  prayer: "/prayer-status",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MindfulPauseScreen() {
-  const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const router = useRouter();
 
-  const [group, setGroup] = useState<AppGroup | null>(null);
-  const [isHolding, setIsHolding] = useState(false);
-  const [noUnlocksLeft, setNoUnlocksLeft] = useState(false);
+  // Pull the first uncompleted habit from the store
+  const uncompletedHabits = useHabitStore((s) => s.getUncompletedHabits());
+  const primaryHabit = uncompletedHabits[0] ?? null;
 
-  // Pick a random quote once per screen open
-  const blockedQuote = useMemo(
-    () => BLOCKED_QUOTES[Math.floor(Math.random() * BLOCKED_QUOTES.length)],
-    [],
+  // Resolve the shield message for the primary habit
+  const shieldMessage = useMemo(
+    () =>
+      primaryHabit
+        ? ShieldService.getShieldMessage(primaryHabit.type)
+        : {
+            title: "Apps Blocked",
+            subtitle: "Complete your daily habits to unlock your apps.",
+            buttonLabel: "Go to App",
+            deepLink: "",
+          },
+    [primaryHabit],
   );
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [phraseIndex, setPhraseIndex] = useState(0);
-  const [hintVisible, setHintVisible] = useState(false); // "keep holding" hint
-
-  const hapticIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const phraseIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const completedRef = useRef(false);
 
   // ── Video player (loops silently, graceful fallback on missing asset) ──────
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const VIDEO_SOURCES = useMemo(
     () => [
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -172,35 +102,24 @@ export default function MindfulPauseScreen() {
     p.play();
   });
 
-  // ── Load group data ──────────────────────────────────────────────────────
-  useEffect(() => {
-    const load = async () => {
-      if (!groupId) return;
-      // Dev fast-path: skip storage for mock IDs
-      if (__DEV__ && DEV_MOCK_GROUPS[groupId]) {
-        const mock = DEV_MOCK_GROUPS[groupId];
-        setGroup(mock);
-        if (!mock.isBlocked && mock.currentUnlocks <= 0) setNoUnlocksLeft(true);
-        return;
-      }
-      const groups = await AppGroupService.getAppGroups();
-      const found = groups.find((g) => g.id === groupId) ?? null;
-      setGroup(found);
-      // Detect zero-unlocks immediately — no need to attempt the 5-second hold
-      if (found && !found.isBlocked && found.currentUnlocks <= 0) {
-        setNoUnlocksLeft(true);
-      }
-    };
-    load();
-  }, [groupId]);
+  // ── Navigate to the habit action screen ──────────────────────────────────
+  const handleGoToHabit = () => {
+    if (!primaryHabit) {
+      router.back();
+      return;
+    }
+    const route = HABIT_ROUTES[primaryHabit.type];
+    if (route) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.push(route as any);
+    } else {
+      // sleep / screentime — dismiss only
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      router.back();
+    }
+  };
 
   // ── Reanimated shared values ─────────────────────────────────────────────
-
-  // Hold progress (0 → 1 over HOLD_DURATION_MS)
-  const holdProgress = useSharedValue(0);
-
-  // Button scale pulse while holding
-  const buttonScale = useSharedValue(1);
 
   // Blob animations
   const blob1X = useSharedValue(0);
@@ -298,135 +217,15 @@ export default function MindfulPauseScreen() {
   }));
 
   const buttonScaleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }],
+    transform: [{ scale: blob1Scale.value }],
   }));
-
-  // SVG ring fill driven by holdProgress
-  const animatedRingProps = useAnimatedProps(() => ({
-    strokeDashoffset: (1 - holdProgress.value) * RING_CIRCUMFERENCE,
-  }));
-
-  // ── Hold-button handlers ─────────────────────────────────────────────────
-
-  const clearHoldTimers = useCallback(() => {
-    if (hapticIntervalRef.current) {
-      clearInterval(hapticIntervalRef.current);
-      hapticIntervalRef.current = null;
-    }
-    if (holdTimeoutRef.current) {
-      clearTimeout(holdTimeoutRef.current);
-      holdTimeoutRef.current = null;
-    }
-    if (phraseIntervalRef.current) {
-      clearInterval(phraseIntervalRef.current);
-      phraseIntervalRef.current = null;
-    }
-  }, []);
-
-  const handleHoldComplete = useCallback(async () => {
-    if (completedRef.current) return;
-    completedRef.current = true;
-
-    clearHoldTimers();
-    setIsHolding(false);
-    setHintVisible(false);
-
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    if (group) {
-      // Dev mock groups skip the real unlock decrement
-      const isMock = __DEV__ && !!DEV_MOCK_GROUPS[group.id];
-      const success = isMock
-        ? group.currentUnlocks > 0
-        : await AppGroupService.incrementUnlock(group.id);
-      if (!success) {
-        setNoUnlocksLeft(true);
-        holdProgress.value = withTiming(0, { duration: 400 });
-        buttonScale.value = withTiming(1, { duration: 200 });
-        return;
-      }
-
-      // Lift the native Screen Time shield so the app becomes accessible.
-      // The shield will be re-applied on the next app launch / block cycle.
-      if (!isMock && Platform.OS === "ios") {
-        try {
-          unblockSelection({ activitySelectionId: group.id });
-        } catch (e) {
-          console.warn(
-            "[MindfulPause] unblockSelection failed (non-fatal):",
-            e,
-          );
-        }
-      }
-    }
-
-    setShowSuccess(true);
-    setTimeout(() => router.back(), 1_400);
-  }, [group, clearHoldTimers]);
-
-  const onPressIn = useCallback(() => {
-    if (completedRef.current || noUnlocksLeft || showSuccess) return;
-    completedRef.current = false;
-    setIsHolding(true);
-    setHintVisible(false);
-    setPhraseIndex(0);
-
-    // Smooth 5-second ring fill
-    holdProgress.value = withTiming(1, {
-      duration: HOLD_DURATION_MS,
-      easing: Easing.linear,
-    });
-
-    // Slow, meditative breathe pulse
-    buttonScale.value = withRepeat(
-      withSequence(
-        withTiming(0.9, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
-        withTiming(1.0, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
-      ),
-      -1,
-      false,
-    );
-
-    // Haptic rhythm every 250 ms
-    hapticIntervalRef.current = setInterval(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }, 250);
-
-    // Cycle motivating phrases every ~2 s
-    phraseIntervalRef.current = setInterval(() => {
-      setPhraseIndex((i) => (i + 1) % COUNTDOWN_PHRASES.length);
-    }, 2_500);
-
-    // Completion timer
-    holdTimeoutRef.current = setTimeout(() => {
-      handleHoldComplete();
-    }, HOLD_DURATION_MS);
-  }, [noUnlocksLeft, showSuccess, handleHoldComplete]);
-
-  const onPressOut = useCallback(() => {
-    if (completedRef.current) return;
-    clearHoldTimers();
-    setIsHolding(false);
-    holdProgress.value = withTiming(0, {
-      duration: 400,
-      easing: Easing.out(Easing.cubic),
-    });
-    buttonScale.value = withTiming(1, { duration: 200 });
-    setHintVisible(true);
-    // Hide hint after 2 s
-    setTimeout(() => setHintVisible(false), 2_000);
-  }, [clearHoldTimers]);
-
-  // ── Cleanup on unmount ───────────────────────────────────────────────────
-  useEffect(() => () => clearHoldTimers(), [clearHoldTimers]);
-
-  // ── Derived UI state ─────────────────────────────────────────────────────
-  const isBlocked = group?.isBlocked ?? false;
-  const unlocksRemaining = group ? group.currentUnlocks : 0;
-  // Treat blocked and no-unlocks-remaining identically in the UI
-  const showBlockedUI = isBlocked || noUnlocksLeft;
 
   // ── Render ───────────────────────────────────────────────────────────────
+  const habiActionRoute = primaryHabit
+    ? HABIT_ROUTES[primaryHabit.type]
+    : undefined;
+  const isDismissOnly = !habiActionRoute;
+
   return (
     <View style={styles.root}>
       {/* ── Nature video background ────────────────────────────────────── */}
@@ -481,107 +280,29 @@ export default function MindfulPauseScreen() {
             />
           </View>
 
-          {/* Headline */}
-          <Text style={styles.headline}>
-            {showSuccess
-              ? "Enjoy your session."
-              : showBlockedUI
-                ? isBlocked
-                  ? "This app is blocked."
-                  : "No unlocks remaining."
-                : isHolding
-                  ? COUNTDOWN_PHRASES[phraseIndex]
-                  : "You're in control."}
-          </Text>
+          {/* Habit-specific headline */}
+          <Text style={styles.headline}>{shieldMessage.title}</Text>
 
-          {/* Sub-headline / motivational quote */}
-          {showBlockedUI && !showSuccess ? (
-            <Text style={styles.quote}>{blockedQuote}</Text>
-          ) : (
-            <Text style={styles.subheadline}>
-              {showSuccess
-                ? "Your unlock has been recorded. \nBe intentional."
-                : isHolding
-                  ? "Keep holding to open the app…"
-                  : `${group?.name ?? "This group"} is gently blocking you.\n${
-                      unlocksRemaining > 0
-                        ? `${unlocksRemaining} unlock${unlocksRemaining !== 1 ? "s" : ""} remaining today.`
-                        : "No unlocks remaining today."
-                    }`}
-            </Text>
-          )}
+          {/* Habit-specific sub-headline */}
+          <Text style={styles.subheadline}>{shieldMessage.subtitle}</Text>
 
-          {/* ── Hold-button (limited) ──────────────────────────────────── */}
-          {!showBlockedUI && !showSuccess && (
-            <View style={styles.buttonArea}>
-              <Pressable
-                onPressIn={onPressIn}
-                onPressOut={onPressOut}
-                style={styles.holdButtonPressable}
-              >
-                <Animated.View
-                  style={[styles.holdButtonOuter, buttonScaleStyle]}
-                >
-                  {/* Background glass circle */}
-                  <BlurView
-                    intensity={40}
-                    tint="light"
-                    style={styles.holdButtonBlur}
-                  />
+          {/* ── Primary CTA — go complete the habit ───────────────────── */}
+          <View style={styles.buttonArea}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.ctaButton,
+                pressed && styles.ctaButtonPressed,
+              ]}
+              onPress={handleGoToHabit}
+            >
+              <Text style={styles.ctaButtonText}>
+                {shieldMessage.buttonLabel}
+              </Text>
+            </Pressable>
+          </View>
 
-                  {/* SVG progress ring */}
-                  <Svg
-                    width={(RING_RADIUS + RING_STROKE) * 2 + 8}
-                    height={(RING_RADIUS + RING_STROKE) * 2 + 8}
-                    style={styles.svgRing}
-                  >
-                    {/* Track */}
-                    <Circle
-                      cx={RING_RADIUS + RING_STROKE + 4}
-                      cy={RING_RADIUS + RING_STROKE + 4}
-                      r={RING_RADIUS}
-                      stroke="rgba(255,255,255,0.15)"
-                      strokeWidth={RING_STROKE}
-                      fill="none"
-                    />
-                    {/* Fill */}
-                    <AnimatedCircle
-                      cx={RING_RADIUS + RING_STROKE + 4}
-                      cy={RING_RADIUS + RING_STROKE + 4}
-                      r={RING_RADIUS}
-                      stroke="rgba(107,200,160,0.95)"
-                      strokeWidth={RING_STROKE}
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeDasharray={RING_CIRCUMFERENCE}
-                      animatedProps={animatedRingProps}
-                      // Start at the top
-                      transform={`rotate(-90 ${RING_RADIUS + RING_STROKE + 4} ${RING_RADIUS + RING_STROKE + 4})`}
-                    />
-                  </Svg>
-
-                  {/* Center label */}
-                  <View style={styles.holdButtonCenter}>
-                    <Text style={styles.holdButtonLabel}>
-                      {isHolding ? "Holding…" : "Hold"}
-                    </Text>
-                  </View>
-                </Animated.View>
-              </Pressable>
-
-              {/* Release hint */}
-              {hintVisible && (
-                <Text style={styles.hint}>Hold until the ring completes</Text>
-              )}
-
-              {!isHolding && !hintVisible && (
-                <Text style={styles.hint}>Press and hold for 5 seconds</Text>
-              )}
-            </View>
-          )}
-
-          {/* ── Blocked / no-unlocks close button (unified) ───────────── */}
-          {showBlockedUI && !showSuccess && (
+          {/* ── Dismiss button (always available) ─────────────────────── */}
+          {!isDismissOnly && (
             <Pressable
               style={({ pressed }) => [
                 styles.closeButton,
@@ -594,9 +315,7 @@ export default function MindfulPauseScreen() {
                 router.back();
               }}
             >
-              <Text style={styles.closeButtonText}>
-                {isBlocked ? "I understand, close" : "Got it, close"}
-              </Text>
+              <Text style={styles.closeButtonText}>Close</Text>
             </Pressable>
           )}
 
@@ -671,16 +390,17 @@ const styles = StyleSheet.create({
   },
 
   headline: {
-    fontFamily: "Lora-SemiBold",
+    fontFamily: "System",
     fontSize: 30,
-    color: "#FFFFFF",
+    fontWeight: "700",
+    color: "#F5F5F5",
     textAlign: "center",
     lineHeight: 38,
     letterSpacing: 0.2,
   },
 
   subheadline: {
-    fontFamily: "Inter",
+    fontFamily: "System",
     fontSize: 15,
     color: "rgba(255,255,255,0.68)",
     textAlign: "center",
@@ -688,60 +408,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
-  // ── Hold button ───────────────────────────────────────────────────────────
+  // ── CTA button ────────────────────────────────────────────────────────────
   buttonArea: {
     alignItems: "center",
     marginTop: 20,
-    gap: 14,
+    width: "100%",
   },
 
-  holdButtonPressable: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  holdButtonOuter: {
-    width: (RING_RADIUS + RING_STROKE) * 2 + 24,
-    height: (RING_RADIUS + RING_STROKE) * 2 + 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  holdButtonBlur: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 9999,
-    overflow: "hidden",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.18)",
-  },
-
-  svgRing: {
-    position: "absolute",
-  },
-
-  holdButtonCenter: {
-    alignItems: "center",
-  },
-
-  holdButtonLabel: {
-    fontFamily: "Inter",
-    fontSize: 13,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.85)",
-    letterSpacing: 0.5,
-  },
-
-  hint: {
-    fontFamily: "Inter",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.50)",
-    textAlign: "center",
-  },
-
-  // ── Close / dismissed button ──────────────────────────────────────────────
-  closeButton: {
-    marginTop: 24,
+  ctaButton: {
+    width: "100%",
     paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 10,
+    backgroundColor: "#E07A5F", // accent.primary — terracotta
+    alignItems: "center",
+  },
+  ctaButtonPressed: {
+    backgroundColor: "#C4624A", // accent.hover
+  },
+  ctaButtonText: {
+    fontFamily: "System",
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
+  },
+
+  // ── Close / dismiss button ────────────────────────────────────────────────
+  closeButton: {
+    marginTop: 8,
+    paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 9999,
     borderWidth: 1.5,
@@ -752,28 +448,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.16)",
   },
   closeButtonText: {
-    fontFamily: "Inter",
-    fontSize: 16,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.88)",
-    letterSpacing: 0.3,
-  },
-
-  // ── Motivational quote (blocked / no-unlocks) ───────────────────────────
-  quote: {
-    fontFamily: "Lora",
-    fontStyle: "italic",
+    fontFamily: "System",
     fontSize: 15,
-    color: "rgba(255,255,255,0.72)",
-    textAlign: "center",
-    lineHeight: 24,
-    paddingHorizontal: 16,
-    marginTop: 4,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.75)",
+    letterSpacing: 0.3,
   },
 
   // ── Brand label ──────────────────────────────────────────────────────────
   brandLabel: {
-    fontFamily: "Lora",
+    fontFamily: "System",
     fontSize: 13,
     color: "rgba(255,255,255,0.28)",
     letterSpacing: 2.5,

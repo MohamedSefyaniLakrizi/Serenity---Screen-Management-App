@@ -138,10 +138,10 @@ export default function ConfigMeditationScreen() {
         {/* Info card */}
         <Animated.View style={[s.infoCard, infoAnim]}>
           <Text style={s.infoText}>
-            You'll meditate for{" "}
+            {"You'll meditate for"}{" "}
             <Text style={s.infoHighlight}>{goalMinutes} minutes</Text> each day
-            using the in-app calm timer. Your apps stay blocked until you're
-            done.
+            {"using the in-app calm timer. Your apps stay blocked until you're"}
+            {"done."}
           </Text>
         </Animated.View>
       </View>

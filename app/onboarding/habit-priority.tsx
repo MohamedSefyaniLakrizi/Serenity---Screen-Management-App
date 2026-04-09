@@ -113,7 +113,7 @@ export default function HabitPriorityScreen() {
           Set Your Priority
         </Animated.Text>
         <Animated.Text style={[s.subtitle, subtitleAnim]}>
-          Your #1 habit is what you'll build first for 60 days.
+          {"Your #1 habit is what you'll build first for 60 days."}
         </Animated.Text>
 
         <Animated.View style={[s.list, listAnim]}>

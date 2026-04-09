@@ -1,0 +1,8 @@
+{
+  "name": "healthkit",
+  "version": "1.0.0",
+  "description": "Native HealthKit module for fitness goal verification in Serenity",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true
+}

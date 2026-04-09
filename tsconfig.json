@@ -3,18 +3,10 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "activity-report": [
-        "./modules/activityReport/index.ts"
-      ]
+      "@/*": ["./src/*"],
+      "activity-report": ["./modules/activityReport/index.ts"],
+      "healthkit": ["./modules/healthkit/index.ts"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }

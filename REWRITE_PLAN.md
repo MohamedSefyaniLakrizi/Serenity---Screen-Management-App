@@ -18,7 +18,7 @@
 | 4. Main App Screens   | Steps 12–14 | `IN_PROGRESS` |
 | 5. Habit Engines      | Steps 15–21 | `NOT_STARTED` |
 | 6. Integration        | Steps 22–25 | `NOT_STARTED` |
-| 7. Cleanup & Polish   | Steps 26–27 | `NOT_STARTED` |
+| 7. Cleanup & Polish   | Steps 26–27 | `COMPLETED`   |
 
 > After completing all steps in a phase, update the phase status to `COMPLETED`.
 
@@ -1495,7 +1495,7 @@ interface TimerState {
 
 ### Step 17: Meditation Timer Engine
 
-- [ ] **STEP 17 — Build meditation timer service and screen**
+- [x] **STEP 17 — Build meditation timer service and screen**
 
 **Goal**: Create a calm meditation timer with breathing guide.
 
@@ -1529,7 +1529,7 @@ interface TimerState {
 
 ### Step 18: Reading Engine
 
-- [ ] **STEP 18 — Build reading timer service with external app monitoring**
+- [x] **STEP 18 — Build reading timer service with external app monitoring**
 
 **Goal**: Reading timer + option to auto-detect usage of reading apps.
 
@@ -1583,7 +1583,7 @@ export const ReadingHabitService = {
 
 ### Step 19: Sleep Engine
 
-- [ ] **STEP 19 — Build sleep schedule engine with escalation**
+- [x] **STEP 19 — Build sleep schedule engine with escalation**
 
 **Goal**: Time-based app locking (bedtime → wake time) with escalation for violations.
 
@@ -1636,7 +1636,7 @@ export const SleepHabitService = {
 
 ### Step 20: Prayer Engine
 
-- [ ] **STEP 20 — Build prayer tracking service with adhan integration and prayer screen**
+- [x] **STEP 20 — Build prayer tracking service with adhan integration and prayer screen**
 
 **Goal**: Religion-adaptable prayer tracking with per-prayer verification.
 
@@ -1711,7 +1711,7 @@ const prayerTimes = new PrayerTimes(coordinates, new Date(), params);
 
 ### Step 21: Fitness Engine (HealthKit)
 
-- [ ] **STEP 21 — Create HealthKit native module and fitness service**
+- [x] **STEP 21 — Create HealthKit native module and fitness service**
 
 **Goal**: Create an Expo native module wrapping HealthKit for step count, workout, and calorie queries. Build the fitness status screen.
 
@@ -1801,7 +1801,7 @@ export const FitnessHabitService = {
 
 ### Step 22: Shield Configuration Rework
 
-- [ ] **STEP 22 — Make shield messages dynamic based on pending habits**
+- [x] **STEP 22 — Make shield messages dynamic based on pending habits**
 
 **Goal**: When apps are blocked, the shield screen should tell the user WHY (which habit) and deep-link to the right action screen.
 
@@ -1851,7 +1851,7 @@ export const ShieldService = {
 
 ### Step 23: Blocking Logic Rework
 
-- [ ] **STEP 23 — Create unified blocking service, remove old group system, rework mindful-pause**
+- [x] **STEP 23 — Create unified blocking service, remove old group system, rework mindful-pause**
 
 **Goal**: Replace per-group blocking with a single global blocking system that locks/unlocks based on habit completion state.
 
@@ -1918,7 +1918,7 @@ export const BlockingService = {
 
 ### Step 24: Habit Stacking System
 
-- [ ] **STEP 24 — Implement 60-day milestone detection and automatic habit activation**
+- [x] **STEP 24 — Implement 60-day milestone detection and automatic habit activation**
 
 **Goal**: When a habit's streak reaches 60 days, graduate it to 'stacked' status and activate the next pending habit.
 
@@ -1957,7 +1957,7 @@ checkAndActivateNextHabit(): {
 
 ### Step 25: Daily Reset & Background Logic
 
-- [ ] **STEP 25 — Wire up daily reset, foreground checks, and notification scheduling**
+- [x] **STEP 25 — Wire up daily reset, foreground checks, and notification scheduling**
 
 **Goal**: Ensure the app correctly resets daily habit completions at midnight, re-evaluates blocking on foreground, and schedules reminder notifications.
 
@@ -2013,7 +2013,7 @@ checkAndActivateNextHabit(): {
 
 ### Step 26: Analytics & Backend Update
 
-- [ ] **STEP 26 — Update PostHog events and Supabase schema for habits**
+- [x] **STEP 26 — Update PostHog events and Supabase schema for habits**
 
 **Goal**: Track new habit-related events and update the backend data model.
 
@@ -2055,7 +2055,7 @@ checkAndActivateNextHabit(): {
 
 ### Step 27: PROJECT.md & Final Wiring
 
-- [ ] **STEP 27 — Rewrite PROJECT.md and final cleanup pass**
+- [x] **STEP 27 — Rewrite PROJECT.md and final cleanup pass**
 
 **Goal**: Update the project documentation to reflect the new habit builder architecture. Clean up any remaining broken imports or unused files.
 

@@ -160,7 +160,7 @@ export default function ConfigStudyScreen() {
         {/* Info card */}
         <Animated.View style={[s.infoCard, infoAnim]}>
           <Text style={s.infoText}>
-            You'll need to complete{" "}
+            {"You'll need to complete"}{" "}
             <Text style={s.infoHighlight}>{formatMinutes(goalMinutes)}</Text> of
             focused work using the in-app timer to unlock your apps each day.
           </Text>

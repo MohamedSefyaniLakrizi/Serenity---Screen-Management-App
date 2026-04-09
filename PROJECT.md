@@ -7,7 +7,7 @@
 
 ## 1. Overview
 
-**Serenity** is an iOS screen time management app built with React Native + Expo. Users set app-blocking groups, earn daily unlocks, and nurture a fox companion whose mood and evolution reflect their digital wellness. The app uses Apple's Screen Time / FamilyControls APIs to monitor and block apps natively.
+**Serenity** is an iOS habit-builder app that uses app blocking as leverage. Users select the habits they want to build (screen time, study, fitness, sleep, prayer, meditation, reading), configure each one, and choose which apps to block. Their selected apps stay blocked by Apple's Screen Time APIs until they complete their daily habits. Habits are stacked one at a time: lock in the first for 60 days, then add the next.
 
 | Field          | Value                                  |
 | -------------- | -------------------------------------- |
@@ -35,11 +35,12 @@
 | Payments    | RevenueCat (`react-native-purchases` + `react-native-purchases-ui`) |
 | Analytics   | PostHog (`posthog-react-native`)                                    |
 | Screen Time | `react-native-device-activity` 0.5.1 (patched)                      |
+| Health      | Custom HealthKit native module (`modules/healthkit/`)               |
 | New Arch    | Enabled (`newArchEnabled: true`, React Compiler experiment on)      |
 
 ### Key Dependencies
 
-`@expo-google-fonts/lora`, `@expo-google-fonts/inter`, `expo-blur`, `expo-linear-gradient`, `expo-image`, `expo-video`, `expo-haptics`, `react-native-svg`, `react-native-gesture-handler`, `react-native-chart-kit`, `@react-native-async-storage/async-storage`
+`expo-blur`, `expo-linear-gradient`, `expo-image`, `expo-video`, `expo-haptics`, `react-native-svg`, `react-native-gesture-handler`, `@react-native-async-storage/async-storage`, `@react-native-community/datetimepicker`
 
 ### Dev Tooling
 
@@ -53,27 +54,18 @@
 
 ```
 app/                              # Expo Router file-based routing
-├── _layout.tsx                   # Root: fonts, auth guard, providers, deep links
-├── index.tsx                     # Redirects → /(tabs)/
+├── _layout.tsx                   # Root: init, auth guard, providers, deep links
+├── index.tsx                     # Redirects → /(tabs)
 ├── paywall.tsx                   # RevenueCat paywall modal
-├── mindful-pause.tsx             # Shield deep-link target (hold-to-unlock)
-├── categories.tsx
-├── settings.tsx
+├── mindful-pause.tsx             # Shield deep-link target — shows active habit
 ├── (tabs)/                       # Main tab navigator (NativeTabs)
-│   ├── _layout.tsx               # 3 tabs: Apps, Progress, Settings
-│   ├── index.tsx                 # Apps tab — group management
-│   ├── progress.tsx              # Streaks, charts, stats
-│   └── settings.tsx              # Preferences, theme, subscription
-├── create-group/                 # 4-step wizard
-│   ├── index.tsx                 # Step 1: DeviceActivitySelectionView
-│   ├── configure.tsx             # Step 2: name, block mode
-│   ├── unlocks.tsx               # Step 3: daily unlock count
-│   └── custom-timeframe.tsx      # Step 4: schedule
-├── edit-group/
-│   └── [id].tsx                  # Edit existing group
-└── onboarding/                   # 15-screen onboarding flow
+│   ├── _layout.tsx               # 3 tabs: Today, Progress, Settings
+│   ├── index.tsx                 # Today tab — DailyChecklist
+│   ├── progress.tsx              # Streaks, charts, habit history
+│   └── settings.tsx              # Habit config, theme, subscription
+└── onboarding/                   # 18-screen onboarding flow
     ├── _layout.tsx               # Stack + PostHog screen tracking
-    └── ... (15 screens)
+    └── ... (18 screens)
 
 src/
 ├── components/
@@ -81,49 +73,65 @@ src/
 │   │   ├── Button.tsx            # 4 variants, 3 sizes
 │   │   ├── Input.tsx             # Labels, errors, icons
 │   │   ├── Card.tsx              # 3 variants
-│   │   ├── Badge.tsx             # 4 colors, 2 sizes
+│   │   ├── Badge.tsx             # 4 color variants, 2 sizes
+│   │   ├── OathConfirmation.tsx  # Pact commitment component
 │   │   └── index.ts
-│   ├── FoxAvatar.tsx             # Fox companion display
+│   ├── DailyChecklist.tsx        # Main habit list with completion state
+│   ├── HabitConfigCard.tsx       # Per-habit edit card (used in settings)
 │   ├── OnboardingHeader.tsx      # Progress bar + back button
 │   └── DevOverlay.tsx            # DEV-only debug panel
 ├── config/
-│   └── onboardingFlow.ts         # A/B flow variants, step ordering
+│   └── onboardingFlow.ts         # A/B flow variants, step ordering, PostHog flag
 ├── constants/
-│   ├── colors.ts                 # Full palette v2 (light + dark)
-│   ├── typography.ts             # Lora + Inter, type scale
-│   ├── spacing.ts                # Spacing scale, radii, shadows
-│   ├── themes.ts                 # lightTheme / darkTheme objects
-│   └── index.ts
+│   ├── colors.ts                 # Structured minimalism palette (dark-first)
+│   ├── typography.ts             # SF Pro + Menlo, HIG-aligned type scale
+│   ├── spacing.ts                # Numeric spacing scale, border radius, shadows
+│   ├── themes.ts                 # darkTheme / lightTheme objects
+│   └── index.ts                  # Re-exports: spacing, borderRadius, typeScale, FONTS
 ├── hooks/
-│   ├── useOnboardingNext.ts      # Flow-aware nav + tracking
-│   ├── useOnboardingAnimation.ts # Reanimated fade-in helpers
-│   ├── useRevenueCat.ts          # Paywall/subscription hook
-│   └── useThemedStyles.ts        # Active theme colors
+│   ├── useOnboardingNext.ts      # Flow-aware nav + PostHog tracking
+│   ├── useOnboardingAnimation.ts # Reanimated sequential fade-in helpers
+│   ├── useRevenueCat.ts          # Paywall / subscription hook
+│   └── useThemedStyles.ts        # useThemedColors() + useThemedStyles()
 ├── services/
-│   ├── appGroups.ts              # Group CRUD, native blocking, shield config
+│   ├── blockingService.ts        # evaluateAndApplyBlocking, lockApps, unlockApps
+│   ├── shieldService.ts          # updateShieldForHabits, getShieldMessage per habit
+│   ├── notificationService.ts    # Schedule, cancel, refresh notification triggers
+│   ├── habits/                   # Per-habit completion engines
+│   │   ├── screenTimeHabit.ts
+│   │   ├── studyHabit.ts
+│   │   ├── fitnessHabit.ts
+│   │   ├── sleepHabit.ts
+│   │   ├── prayerHabit.ts
+│   │   ├── meditationHabit.ts
+│   │   └── readingHabit.ts
 │   ├── posthog.ts                # PostHog client + typed events
 │   ├── purchases.ts              # RevenueCat init, offerings, purchase flow
 │   └── supabase.ts               # Supabase client + OnboardingService
 ├── store/
-│   ├── appStore.ts               # Fox state, screen time, streaks, limits
+│   ├── habitStore.ts             # Habits, blocked apps, daily completion, stacking
+│   ├── appStore.ts               # ScreenTimeData, device-level preferences
 │   ├── onboardingStore.ts        # Onboarding data & step tracking
 │   ├── purchasesStore.ts         # RevenueCat state, isPro, offerings
 │   └── themeStore.ts             # Theme mode (light/dark/system)
 ├── types/
-│   ├── index.ts                  # FoxState, ScreenTimeData, AppLimit, etc.
+│   ├── habits.ts                 # HabitType, Habit, HabitConfig, CompletionMethod
+│   ├── index.ts                  # ScreenTimeData and other shared types
 │   └── onboarding.ts             # OnboardingData, OnboardingRecord
 └── utils/
-    ├── categories.ts             # Bundle-ID → category mapping
     ├── events.ts                 # AppEventEmitter (ONBOARDING_COMPLETED/RESET)
-    └── screentime.ts             # ScreenTime wrapper (current)
+    └── screentime.ts             # ScreenTime wrapper (@ts-nocheck legacy)
 
 targets/                          # iOS App Extension targets
 ├── ActivityMonitorExtension/     # Monitors device activity intervals
-├── ShieldAction/                 # Handles shield button taps
-└── ShieldConfiguration/          # Renders custom block screen UI
+├── DeviceActivityReport/         # Reports usage data
+├── ShieldAction/                 # Handles shield button taps → opens deep link
+└── ShieldConfiguration/          # Renders custom block screen UI per habit
 
-modules/screentime/index.ts      # Legacy NativeModules wrapper (superseded)
-utils/screentime.ts               # Root-level duplicate (prefer src/utils/)
+modules/
+├── activityReport/               # Custom Expo module for DeviceActivityReport
+├── healthkit/                    # Custom HealthKit bridge (step count, workouts)
+└── screentime/                   # Legacy ScreenTime NativeModules wrapper
 patches/react-native-device-activity+0.5.1.patch  # Adds appearance prop
 ```
 
@@ -138,7 +146,7 @@ EXPO_PUBLIC_POSTHOG_API_KEY=    # PostHog project API key
 EXPO_PUBLIC_POSTHOG_HOST=       # PostHog host (default: https://us.i.posthog.com)
 ```
 
-RevenueCat iOS API key is set directly in `src/services/purchases.ts`. Replace the test key (`test_DtXiUbRpjorxKjwwuGhozpjBJyx`) with a production key before release.
+RevenueCat iOS API key is set directly in `src/services/purchases.ts`.
 
 ---
 
@@ -146,88 +154,113 @@ RevenueCat iOS API key is set directly in `src/services/purchases.ts`. Replace t
 
 ### Root Layout (`app/_layout.tsx`)
 
-- Loads Lora + Inter fonts via `useFonts(fontAssets)`
-- Reads `AsyncStorage('onboardingCompleted')` for routing decision
-- Initializes theme + RevenueCat SDK
-- Sets up daily reset timer + `AppState` listener for re-blocking
-- Handles deep links (`serenity://mindful-pause?groupId=...`)
+- Loads `habitStore` and runs `BlockingService.onAppForeground()` on startup
+- Calls `checkAndActivateNextHabit()` to advance habit stacking after load
+- Refreshes notification schedule on start
+- Configures RevenueCat SDK (non-fatal if fails)
+- Handles deep links (`serenity://mindful-pause`, `serenity://study-timer`, etc.)
 - Wraps app in `<PostHogProvider>`
-- **Nav guard**: onboarding incomplete → `/onboarding/`; complete & currently in onboarding → `/paywall`
+- **Nav guard**: onboarding incomplete → `/onboarding`; complete & in onboarding → `/paywall`
 
 ### Tab Navigator (`app/(tabs)/_layout.tsx`)
 
-Uses `expo-router/unstable-native-tabs` (`NativeTabs`) with 3 tabs: **Apps**, **Progress**, **Settings**.
+Uses `expo-router/unstable-native-tabs` (`NativeTabs`) with 3 tabs:
 
-### Key Flows
+- **Today** (`index.tsx`) — DailyChecklist showing active habits with completion state
+- **Progress** (`progress.tsx`) — Streaks, completion history, charts
+- **Settings** (`settings.tsx`) — Per-habit config editing, theme, subscription
 
-- **Create Group**: 4-step wizard (select apps → configure → unlocks → timeframe)
-- **Edit Group**: Dynamic route `[id].tsx`
-- **Mindful Pause**: Full-screen modal via deep link from shield extension
-- **Paywall**: Full-screen RevenueCat paywall shown after onboarding completion
+### Key Screens
+
+- **Mindful Pause** (`app/mindful-pause.tsx`) — opened via deep link from shield; shows primary uncompleted habit and routes to its action screen
+- **Paywall** (`app/paywall.tsx`) — RevenueCat paywall, shown after onboarding
+- **Habit timers** (`app/study-timer.tsx`, `app/meditation-timer.tsx`, `app/reading-timer.tsx`) — in-app timers that mark habits complete
+- **Status screens** (`app/fitness-status.tsx`, `app/prayer-status.tsx`) — manual completion screens
 
 ---
 
 ## 6. State Management (Zustand)
 
-| Store                | File                           | Key State                                                      |
-| -------------------- | ------------------------------ | -------------------------------------------------------------- |
-| `useAppStore`        | `src/store/appStore.ts`        | Fox mood/evolution/happiness, screen time, streaks, app limits |
-| `useOnboardingStore` | `src/store/onboardingStore.ts` | Form data, step tracking, Supabase save                        |
-| `usePurchasesStore`  | `src/store/purchasesStore.ts`  | CustomerInfo, isPro, current offering                          |
-| `useThemeStore`      | `src/store/themeStore.ts`      | Theme mode (light/dark/system)                                 |
+| Store                | File                           | Key State                                                              |
+| -------------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| `useHabitStore`      | `src/store/habitStore.ts`      | Active habits, blocked apps, daily completion, streaks, stacking state |
+| `useAppStore`        | `src/store/appStore.ts`        | ScreenTimeData, device-level preferences                               |
+| `useOnboardingStore` | `src/store/onboardingStore.ts` | Onboarding form data, Supabase save                                    |
+| `usePurchasesStore`  | `src/store/purchasesStore.ts`  | CustomerInfo, isPro, current offering                                  |
+| `useThemeStore`      | `src/store/themeStore.ts`      | Theme mode (light/dark/system)                                         |
 
 All stores persist to AsyncStorage via manual `loadFromStorage`/`saveToStorage` methods.
 
-### Fox Evolution System
+### Habit Types (`src/types/habits.ts`)
 
-- **Baby** (days 1–7) → **Teen** (days 8–30) → **Adult** (day 31+)
-- Evolution keyed on `streakData.currentStreak`
-- Mood (happy/neutral/sad/sleeping) derived from daily usage vs. daily limit
-- Happiness meter (0–100): adjusts ±10/15 based on usage percentage
+`HabitType`: `'screentime' | 'study' | 'fitness' | 'sleep' | 'prayer' | 'meditation' | 'reading'`
+
+Each `Habit` has: `id`, `type`, `config` (type-specific), `status` (pending/active/graduated), `priority`, streak data, daily completion state.
+
+### Habit Stacking
+
+- Users set priority order during onboarding
+- Only the **highest-priority active habit** is enforced on any given day
+- On 60-day streak: habit graduates → next pending habit activates automatically
+- `checkAndActivateNextHabit()` runs on startup and after habit completion
 
 ### Event System (`src/utils/events.ts`)
 
-`AppEventEmitter` for decoupled communication:
-
 - `ONBOARDING_COMPLETED` → triggers nav guard update
-- `ONBOARDING_RESET` → resets onboarding state
+- `ONBOARDING_RESET` → resets onboarding and habit state
 
 ---
 
 ## 7. Services
 
+### Blocking (`src/services/blockingService.ts`)
+
+Core blocking logic. Called on startup, after habit completion, and on app foreground.
+
+- `evaluateAndApplyBlocking()` — checks active habits → calls lockApps or unlockApps
+- `lockApps(selection)` — writes shield config, activates DeviceActivity monitoring
+- `unlockApps()` — removes all monitoring and shield configs
+- `onAppForeground()` — re-evaluates state on resume
+
+### Shield (`src/services/shieldService.ts`)
+
+Controls what appears on the block screen when a user opens a blocked app.
+
+- `updateShieldForHabits(uncompletedHabits)` — writes per-habit shield messages to UserDefaults
+- `getShieldMessage(habitType)` — returns `{ title, subtitle, buttonLabel, deepLink }` for each habit type
+
+### Notifications (`src/services/notificationService.ts`)
+
+- Schedules daily reminders based on habit configs
+- `refreshSchedule()` — cancels old triggers and reschedules based on current habits
+
+### Habit Engines (`src/services/habits/`)
+
+Each engine handles a specific habit type's completion logic:
+
+- **screentime**: compares against daily limit from HealthKit/DeviceActivity data
+- **study**: validates in-app timer session
+- **fitness**: reads step count / workout data from HealthKit
+- **sleep**: validates sleep window from HealthKit
+- **prayer**: manual confirmation with prayer time config
+- **meditation**: validates in-app calm timer session
+- **reading**: validates in-app reading timer session
+
 ### Supabase (`src/services/supabase.ts`)
 
-- Client from `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_KEY`
-- `OnboardingService.saveOnboardingData()` — non-blocking insert after onboarding
-- Table: `onboarding` with RLS policies
+- Non-blocking onboarding analytics insert
 - **Offline-first**: app works fully without Supabase
 
 ### RevenueCat (`src/services/purchases.ts`)
 
 - Entitlement: `"Serenity Pro"` | Products: `monthly`, `yearly`, `lifetime`
-- `useRevenueCat()` hook exposes: `showPaywall()`, `showPaywallIfNeeded()`, `restore()`
-- Paywall UI via `react-native-purchases-ui` (remote-configured from RC dashboard)
+- `useRevenueCat()` hook: `showPaywall()`, `showPaywallIfNeeded()`, `restore()`
 
 ### PostHog (`src/services/posthog.ts`)
 
 - Disabled in `__DEV__` by default
-- Feature flag: `onboarding-flow-variant` — **flow controlled remotely from PostHog platform**
-  - Flag **payload** = JSON array of step names → defines the exact screen order (e.g. `["welcome","name-input","screentime-permission","daily-goal","building-plan"]`)
-  - Flag **value** = legacy variant key string (`"default"` / `"permissions-first"`) for backward compat
-  - `null` / missing payload → falls back to hard-coded `FLOW_VARIANTS.default`
-- `STEP_REGISTRY` maps every screen name to its route; PostHog payloads reference these names
-- `useRemoteOnboardingFlow()` resolves the active step list at runtime; `useOnboardingNext()` consumes it
-- Tracked events: `onboarding_screen_view`, `onboarding_step_completed`, `onboarding_step_back`, `onboarding_completed`
-
-### App Groups Service (`src/services/appGroups.ts`)
-
-- CRUD for `AppGroup` objects in AsyncStorage key `@app_groups`
-- Each group holds: name, apps, `familyActivitySelection` token, session length, daily unlocks, schedule, block state
-- On save → calls `blockSelection`/`unblockSelection` via device-activity bridge
-- Writes per-group shield config to `UserDefaults` for `ShieldConfiguration` extension
-- Shield button deep-links: `serenity://mindful-pause?groupId=<id>`
-- Daily unlock reset at midnight + on app foreground
+- Feature flag: `onboarding-flow-variant` — flow controlled remotely from PostHog
+- Tracked events: `onboarding_screen_view`, `onboarding_step_completed`, `onboarding_completed`
 
 ---
 
@@ -235,10 +268,11 @@ All stores persist to AsyncStorage via manual `loadFromStorage`/`saveToStorage` 
 
 ### Apple Frameworks Used
 
-- **FamilyControls** — authorization & activity picker
+- **FamilyControls** — authorization & app picker
 - **ManagedSettings** — app blocking / shield display
-- **DeviceActivity** — scheduled monitoring
-- **ManagedSettingsUI** — shield configuration customization
+- **DeviceActivity** — scheduled monitoring and interval tracking
+- **ManagedSettingsUI** — shield UI customization
+- **HealthKit** — step count, workout, sleep data (via custom module)
 
 ### react-native-device-activity (v0.5.1, patched)
 
@@ -254,82 +288,88 @@ Primary native bridge. Expo plugin config in `app.json`:
 ]
 ```
 
-**Patch** (`patches/react-native-device-activity+0.5.1.patch`): Adds an `appearance` prop (`'light' | 'dark' | 'unspecified'`) to `DeviceActivitySelectionView` so the native picker respects the app's theme.
+**Patch** (`patches/react-native-device-activity+0.5.1.patch`): Adds `appearance` prop to `DeviceActivitySelectionView`.
 
 ### App Extension Targets
 
-| Extension                | Bundle ID                                   | Purpose                                                         |
-| ------------------------ | ------------------------------------------- | --------------------------------------------------------------- |
-| ActivityMonitorExtension | `com.msl.serenity.ActivityMonitorExtension` | Monitors device activity intervals, executes configured actions |
-| ShieldAction             | `com.msl.serenity.ShieldAction`             | Handles shield button taps (open deep link, unblock, whitelist) |
-| ShieldConfiguration      | `com.msl.serenity.ShieldConfiguration`      | Renders custom block screen (title, subtitle, buttons, colors)  |
+| Extension                | Bundle ID                                   | Purpose                                                       |
+| ------------------------ | ------------------------------------------- | ------------------------------------------------------------- |
+| ActivityMonitorExtension | `com.msl.serenity.ActivityMonitorExtension` | Monitors device activity intervals, executes blocking actions |
+| DeviceActivityReport     | `com.msl.serenity.DeviceActivityReport`     | Reports usage data back to the app                            |
+| ShieldAction             | `com.msl.serenity.ShieldAction`             | Handles shield button taps → opens deep link to habit screen  |
+| ShieldConfiguration      | `com.msl.serenity.ShieldConfiguration`      | Renders custom block screen with habit-specific messaging     |
 
-All 3 extensions share `group.com.msl.serenity` app group for UserDefaults data exchange with the main app.
+All extensions share `group.com.msl.serenity` app group for UserDefaults data exchange.
 
-### Entitlements (`app.json`)
+### Shield → Habit Deep Link Flow
 
-```json
-{
-  "com.apple.developer.family-controls": true,
-  "com.apple.security.application-groups": ["group.com.msl.serenity"]
-}
-```
-
-### Shield → App Deep Link Flow
-
-1. User taps a button on the shield screen of a blocked app
-2. `ShieldActionExtension` opens URL `serenity://mindful-pause?groupId=X`
+1. User opens a blocked app; the shield screen appears
+2. Shield button URL: `serenity://mindful-pause` (no group ID needed)
 3. Root layout routes to `app/mindful-pause.tsx`
-4. **Limited groups**: hold-to-unlock (5 sec) | **Blocked groups**: motivational dismiss
+4. Screen shows the primary uncompleted habit and a CTA to the habit's action screen
+5. On habit completion → `BlockingService.evaluateAndApplyBlocking()` → apps unlock
 
 ### Critical Notes
 
-- **Physical device required** — Screen Time APIs do not work in the simulator
-- **FamilyControls entitlement** must be approved by Apple for all 4 bundle IDs before distribution
+- **Physical device required** — Screen Time APIs do not work in Simulator
+- **FamilyControls entitlement** must be approved by Apple before TestFlight/App Store distribution
   - Request at: https://developer.apple.com/contact/request/family-controls-distribution
-  - Until approved: local Xcode builds only — no TestFlight or App Store
 - `REACT_NATIVE_DEVICE_ACTIVITY_APP_GROUP` build variable must match the app group in native targets
 
 ---
 
 ## 9. Design System
 
+**Aesthetic**: Structured Minimalism — high-contrast dark-first, surgical whitespace, zero decoration.
+
 ### Colors (`src/constants/colors.ts`)
 
-Muted, breathable tones inspired by Calm, Oura, and Headspace. Every color passes WCAG AA contrast.
+Dark-first palette with zinc neutrals and a single warm accent.
 
-| Role                  | Token                                 | Light                    | Dark      |
-| --------------------- | ------------------------------------- | ------------------------ | --------- |
-| Brand / CTAs          | `primary`                             | `#E07A5F` (Terracotta)   | same      |
-| Secondary actions     | `secondary`                           | `#7C6D9E` (Dusty Violet) | same      |
-| Progress / highlights | `accent`                              | `#6B9E8F` (Sage)         | same      |
-| Page background       | `background` / `backgroundDark`       | `#F8F7F4`                | `#13110F` |
-| Card surface          | `surface` / `surfaceDark`             | `#FFFFFF`                | `#1E1B18` |
-| Headings              | `textPrimary` / `textDarkPrimary`     | `#1C1917`                | `#F5F4F1` |
-| Body copy             | `textSecondary` / `textDarkSecondary` | `#57534E`                | `#C7C4BF` |
-| Success               | `success`                             | `#4A9E7F`                | same      |
-| Error                 | `error`                               | `#C0504A`                | same      |
-| Warning               | `warning`                             | `#C49A3C`                | same      |
-| Info                  | `info`                                | `#4A7FA5`                | same      |
+| Role            | Token                  | Value     |
+| --------------- | ---------------------- | --------- |
+| Brand / CTAs    | `accent.primary`       | `#E07A5F` |
+| Page background | `theme.bg.primary`     | `#0A0A0A` |
+| Card surface    | `theme.bg.elevated`    | `#141414` |
+| Subtle surface  | `theme.bg.subtle`      | `#252528` |
+| Heading text    | `theme.text.primary`   | `#F5F5F5` |
+| Body text       | `theme.text.secondary` | `#A1A1AA` |
+| Muted text      | `theme.text.tertiary`  | `#71717A` |
+| Border          | `theme.border.default` | `#27272A` |
+| Success         | `status.success`       | `#22C55E` |
+| Error           | `status.error`         | `#EF4444` |
 
-Full palette also includes: `primaryLight/Dark/Subtle`, `secondaryLight/Subtle`, `accentLight/Subtle`, all status `Light`/`Subtle` variants, `borderStrong`/`borderDark`, `divider`, warm shadow tokens, and overlay presets.
+Habit accent colors are in `habitAccent` (one per `HabitType`).
 
 ### Typography (`src/constants/typography.ts`)
 
-- **Lora** (serif) — Display/H1 headings only (Bold, SemiBold, Medium, Regular)
-- **Inter** (sans-serif) — all other UI text (Regular, Medium, SemiBold, Bold)
-- Scale: Display 1 (48) → Display 2 (36) → H1 (28) → H2 (22) → H3 (18) → Body Large (16) → Body (14) → Caption (12) → Label (11)
-- Fonts loaded via `useFonts(fontAssets)` with `@expo-google-fonts/*`
+- **System (SF Pro)** via `FONTS.display` / `FONTS.text` — all UI text
+- **Menlo** via `FONTS.mono` — code / numbers
+- Scale follows Apple HIG: `largeTitle`(34) → `title1`(28) → `title2`(22) → `title3`(20) → `headline`(17/600) → `body`(17) → `callout`(16) → `subheadline`(15) → `footnote`(13) → `caption1`(12) → `caption2`(11)
+- Access via `typeScale.body.size`, `typeScale.title1.weight`, etc.
+- **No external fonts loaded at runtime** — SF Pro is built into iOS
 
 ### Spacing (`src/constants/spacing.ts`)
 
-- Scale: `xxs`(4) → `xs`(8) → `sm`(16) → `md`(20) → `lg`(24) → `xl`(32) → `xxl`(40)
-- Border radius: `small`(12) → `medium`(16) → `large`(20) → `xlarge`(24) → `full`(9999)
-- Shadow presets with warm tint `rgba(255, 122, 61, 0.2)`
+Numeric key map: `spacing[1]`=4, `spacing[2]`=8, `spacing[3]`=12, `spacing[4]`=16, `spacing[5]`=20, `spacing[6]`=24, `spacing[8]`=32, `spacing[10]`=40, `spacing[12]`=48
+
+Border radius: `borderRadius.sm`=6, `borderRadius.md`=10, `borderRadius.lg`=14, `borderRadius.xl`=20, `borderRadius.full`=9999
 
 ### Themes (`src/constants/themes.ts`)
 
-`lightTheme` and `darkTheme` objects consumed via `useThemedColors()` hook.
+`darkTheme` and `lightTheme` consumed via `useThemedColors()`. Shape:
+
+```typescript
+{
+  bg: { primary, elevated, surface, subtle, hover },
+  text: { primary, secondary, tertiary, disabled },
+  accent: { primary, hover, subtle, glow },
+  status: { success, warning, error, info },
+  habitAccent: Record<HabitType, string>,
+  border: { subtle, default, strong },
+  statusBar: 'light-content' | 'dark-content',
+}
+```
 
 ### UI Components (`src/components/ui/`)
 
@@ -337,8 +377,8 @@ Full palette also includes: `primaryLight/Dark/Subtle`, `secondaryLight/Subtle`,
 | --------- | ------------------------------------------------------ |
 | `Button`  | primary, secondary, outline, ghost · sizes: sm, md, lg |
 | `Input`   | label, error message, helper text, icon support        |
-| `Card`    | default, elevated, outlined                            |
-| `Badge`   | 4 color variants · sizes: sm, md                       |
+| `Card`    | default, elevated, outlined · `padding` as number      |
+| `Badge`   | primary, secondary, success, error · sizes: sm, md     |
 
 ---
 
@@ -346,59 +386,53 @@ Full palette also includes: `primaryLight/Dark/Subtle`, `secondaryLight/Subtle`,
 
 ### Architecture (`src/config/onboardingFlow.ts`)
 
-- **15-screen flow** — step order is decided from the **PostHog platform** (no code release needed)
-- `STEP_REGISTRY` — canonical map of every screen name → `OnboardingStep` (route + name + optional `skipWhen`)
-- `FLOW_VARIANTS` — hard-coded fallback variants; used when PostHog is unavailable or payload is absent
-- `useRemoteOnboardingFlow()` — reads the PostHog flag payload as a JSON array of step names and builds the live step list; falls back to variant key string, then to `default`
+- **18-screen default flow** — controlled by PostHog feature flag
+- `STEP_REGISTRY` — canonical map: step name → `OnboardingStep` (route + optional `skipWhen`)
+- `FLOW_VARIANTS.default` — hard-coded fallback (PostHog unavailable)
+- `skipWhen(ctx)` callbacks skip config screens for habits not selected by the user
 - `useOnboardingNext()` hook: `navigateNext()`, `navigatePrev()`, `progressFraction`
-- Steps can be conditionally skipped via `skipWhen(ctx)` callbacks (applied even on remotely-defined flows)
-
-#### PostHog Feature Flag Setup
-
-1. Create flag with key `onboarding-flow-variant`
-2. For each experiment variant, set the **Payload** to a JSON array of step names:
-   ```json
-   [
-     "welcome",
-     "name-input",
-     "problem-selection",
-     "screentime-permission",
-     "notification-permission",
-     "daily-goal",
-     "app-selection",
-     "building-plan"
-   ]
-   ```
-3. Valid step names (see `STEP_REGISTRY`): `welcome`, `name-input`, `name-intro`, `problem-selection`, `solution-preview`, `stats-intro`, `pause-reflect`, `mindful-sessions`, `screentime-permission`, `notification-permission`, `phone-usage`, `daily-goal`, `app-selection`, `usage-patterns`, `building-plan`
-4. Leave payload empty / `null` for the control group (uses app default flow)
 
 ### Default Flow Order
 
-1. Welcome → 2. Name Input → 3. Name Intro → 4. Problem Selection → 5. Solution Preview → 6. Stats Intro → 7. Pause & Reflect → 8. Mindful Sessions → 9. Screen Time Permission → 10. Notification Permission → 11. Phone Usage → 12. Daily Goal → 13. App Selection → 14. Usage Patterns → 15. Building Plan
+1. `/onboarding` (welcome)
+2. `/onboarding/how-it-works`
+3. `/onboarding/the-pact`
+4. `/onboarding/habit-selection`
+5. `/onboarding/habit-priority`
+6. `/onboarding/config-screentime` _(skipped if screentime not selected)_
+7. `/onboarding/config-study` _(skipped if study not selected)_
+8. `/onboarding/config-fitness` _(skipped if fitness not selected)_
+9. `/onboarding/config-sleep` _(skipped if sleep not selected)_
+10. `/onboarding/config-prayer` _(skipped if prayer not selected)_
+11. `/onboarding/config-meditation` _(skipped if meditation not selected)_
+12. `/onboarding/config-reading` _(skipped if reading not selected)_
+13. `/onboarding/app-selection` (FamilyControls picker + access control wizard)
+14. `/onboarding/screentime-permission`
+15. `/onboarding/notification-permission`
+16. `/onboarding/healthkit-permission` _(skipped if fitness not selected)_
+17. `/onboarding/pact-screen`
+18. `/onboarding/building-plan` → redirect to `/paywall`
 
 ### Data Collected (`src/types/onboarding.ts`)
 
-`primaryProblem`, `primaryGoal`, `foxName`, `dailyLimitHours`, `dailyLimitMinutes`, `notificationsEnabled`, `screenTimePermissionGranted`, `currentDailyUsageRange`, `problemApps`, `selectedApps`, `selectedCategories`, `whenUsePhoneMost`, `reasonForChange`, `analyticsEnabled`
+`selectedHabits`, `habitPriority`, `habitConfigs` (per-type config), `familyActivitySelection` (opaque token), `screenTimePermissionGranted`, `notificationsEnabled`, `healthKitPermissionGranted`, `pactAccepted`, `analyticsEnabled`
 
 ### Completion Flow
 
-1. Data saved to AsyncStorage immediately (offline-first)
+1. Onboarding data saved to AsyncStorage immediately (offline-first)
 2. `ONBOARDING_COMPLETED` event emitted → nav guard redirects to `/paywall`
 3. Data saved to Supabase asynchronously (non-blocking, best-effort)
-
-### Testing / Reset
-
-- Use `DevOverlay` component (visible in `__DEV__`) to reset onboarding
-- Or call `useOnboardingStore().resetOnboarding()` programmatically
 
 ---
 
 ## 11. Mindful Pause (`app/mindful-pause.tsx`)
 
-- Opened via deep link `serenity://mindful-pause?groupId=<id>` from shield button
-- **Limited groups**: user must hold a button for 5 seconds (haptic rhythm + countdown phrases) to unlock; decrements daily unlock count on success
-- **Blocked groups**: shows motivational quote; single tap dismisses (shield stays active)
-- Visual design: nature video background, animated gradient blobs, `BlurView` overlay, Lottie logo animation, Lora serif headings
+- Opened via deep link `serenity://mindful-pause` from shield button
+- Reads the first uncompleted habit from `habitStore`
+- Displays habit-specific shield message from `ShieldService.getShieldMessage()`
+- CTA routes to the appropriate habit action screen (study timer, meditation timer, etc.)
+- Visual design: nature video background + animated gradient blobs + BlurView overlay + Lottie logo
+- `sleep` and `screentime` habits dismiss only (no action screen)
 
 ---
 
@@ -413,7 +447,7 @@ Full palette also includes: `primaryLight/Dark/Subtle`, `secondaryLight/Subtle`,
 | `production`  | internal     | Auto-increment version from remote    |
 
 - App version source: `remote`
-- All 3 app extensions declared in `app.json` under `extra.eas.build.experimental.ios.appExtensions`
+- All app extensions declared in `app.json` under `extra.eas.build.experimental.ios.appExtensions`
 
 ### npm Scripts
 
@@ -428,17 +462,18 @@ Full palette also includes: `primaryLight/Dark/Subtle`, `secondaryLight/Subtle`,
 
 ## 13. Conventions & Rules
 
-1. **Path alias**: `@/*` → `./src/*` — all imports from `src/` must use `@/`
-2. **No emojis in UI** — `lucide-react-native` icons exclusively
-3. **Platform guards**: all Screen Time / FamilyControls calls wrapped in `Platform.OS !== 'ios'` checks
+1. **Path alias**: `@/*` → `./src/*` — all imports from `src/` use `@/`
+2. **No emojis in UI** — `lucide-react-native` icons only
+3. **Platform guards**: all Screen Time / FamilyControls API calls wrapped in `Platform.OS === 'ios'` checks
 4. **Offline-first**: critical data in AsyncStorage; Supabase is best-effort
-5. **Themed styling**: use `useThemedColors()` to get the active palette; styles are functions of theme
-6. **AsyncStorage keys**: `onboardingCompleted`, `onboardingData`, `@app_groups`, `@theme_mode`
-7. **Event-driven nav**: use `appEvents` emitter to decouple state changes from navigation
-8. **Animations**: Reanimated 4 for all transitions; `useOnboardingAnimation` for sequential fade-ins
-9. **Composition**: `OnboardingHeader` is reused across onboarding and create-group flows
-10. **File-based routing**: Expo Router with typed routes experiment enabled
-11. **Deep linking**: always route `serenity://mindful-pause?groupId=...` → `app/mindful-pause.tsx`
+5. **Themed styling**: use `useThemedColors()` for the active palette; avoid hard-coded colors
+6. **Spacing**: use numeric keys (`spacing[4]`) or inline numbers; no named keys (`.sm`, `.lg`)
+7. **Typography**: use `typeScale` constants; no magic font sizes
+8. **AsyncStorage keys**: `@onboarding`, `@habits`, `@theme_mode`, `@blocked_apps`
+9. **Event-driven nav**: use `appEvents` emitter to decouple state changes from navigation
+10. **Animations**: Reanimated 4 for all transitions; `useSequentialFadeIn` for onboarding screens
+11. **File-based routing**: Expo Router with typed routes experiment enabled
+12. **Deep linking**: `serenity://mindful-pause` → `app/mindful-pause.tsx`; `serenity://study-timer` → `app/study-timer.tsx`; etc.
 
 ---
 
@@ -446,29 +481,27 @@ Full palette also includes: `primaryLight/Dark/Subtle`, `secondaryLight/Subtle`,
 
 ### Completed
 
-- Design system (colors, typography, spacing, themes, 4 base UI components)
-- Zustand stores with AsyncStorage persistence
-- 15-screen onboarding with PostHog A/B testing
+- New habit-builder architecture (habitStore, 7 habit types, stacking system)
+- Blocking service + shield service wired to habit state
+- Notification service for habit reminders
+- 18-screen onboarding with PostHog A/B testing and per-habit config
+- Design system rewrite (Structured Minimalism / dark-first, SF Pro, numeric spacing)
+- All UI components updated to new token API
+- HealthKit custom native module
+- FamilyControls app selection with multi-step access control wizard
+- Mindful Pause updated for habit-based messaging
+- Per-habit action screens (study/meditation/reading timers, fitness/prayer status)
+- Tab navigator (Today / Progress / Settings)
+- RevenueCat subscription with paywall
 - Supabase onboarding analytics
-- Screen Time integration + 3 iOS app extensions
-- App group CRUD with native blocking
-- Mindful Pause (hold-to-unlock + blocked mode)
-- RevenueCat subscription system with paywall
 - Dark / light / system theme support
-- Progress screen (currently mock data)
-- Settings screen with subscription management
-- Fox companion with evolution (Baby → Teen → Adult) and mood system
-- Deep linking from shield extension to main app
-- PostHog analytics
-- Daily unlock reset (midnight + foreground)
+- Deep linking from shield extension to habit screens
 
 ### Not Yet Done
 
-- Real screen time data on Progress screen (uses mock data)
-- Fox illustrations for all evolution stages (currently single default image)
-- Lottie animations for fox mood transitions
+- Real screen time data on Progress screen (mock data currently)
+- Habit streak charts with real historical data
 - User authentication (currently device-specific / anonymous)
-- Push notifications for reminders
 - Android support
 - Comprehensive test suite
 
@@ -476,31 +509,32 @@ Full palette also includes: `primaryLight/Dark/Subtle`, `secondaryLight/Subtle`,
 
 ## 15. File Quick Reference
 
-| What                                | Where                                              |
-| ----------------------------------- | -------------------------------------------------- |
-| Root layout / providers / nav guard | `app/_layout.tsx`                                  |
-| Tab navigator                       | `app/(tabs)/_layout.tsx`                           |
-| Mindful Pause screen                | `app/mindful-pause.tsx`                            |
-| Paywall screen                      | `app/paywall.tsx`                                  |
-| Onboarding flow config              | `src/config/onboardingFlow.ts`                     |
-| Color palette                       | `src/constants/colors.ts`                          |
-| Typography scale                    | `src/constants/typography.ts`                      |
-| Spacing scale                       | `src/constants/spacing.ts`                         |
-| Theme objects                       | `src/constants/themes.ts`                          |
-| Fox + app state                     | `src/store/appStore.ts`                            |
-| Onboarding state                    | `src/store/onboardingStore.ts`                     |
-| Purchases state                     | `src/store/purchasesStore.ts`                      |
-| Theme state                         | `src/store/themeStore.ts`                          |
-| App group service                   | `src/services/appGroups.ts`                        |
-| Screen Time wrapper (current)       | `src/utils/screentime.ts`                          |
-| Screen Time wrapper (legacy)        | `modules/screentime/index.ts`                      |
-| RevenueCat service                  | `src/services/purchases.ts`                        |
-| Supabase service                    | `src/services/supabase.ts`                         |
-| PostHog service                     | `src/services/posthog.ts`                          |
-| App event emitter                   | `src/utils/events.ts`                              |
-| Shield config extension             | `targets/ShieldConfiguration/`                     |
-| Shield action extension             | `targets/ShieldAction/`                            |
-| Activity monitor extension          | `targets/ActivityMonitorExtension/`                |
-| Device-activity patch               | `patches/react-native-device-activity+0.5.1.patch` |
-| Expo / EAS config                   | `app.json`, `eas.json`                             |
-| TypeScript config                   | `tsconfig.json`                                    |
+| What                                | Where                                 |
+| ----------------------------------- | ------------------------------------- |
+| Root layout / providers / nav guard | `app/_layout.tsx`                     |
+| Tab navigator                       | `app/(tabs)/_layout.tsx`              |
+| Daily checklist (main screen)       | `app/(tabs)/index.tsx`                |
+| Progress & streaks                  | `app/(tabs)/progress.tsx`             |
+| Habit settings                      | `app/(tabs)/settings.tsx`             |
+| Mindful Pause screen                | `app/mindful-pause.tsx`               |
+| Paywall screen                      | `app/paywall.tsx`                     |
+| Onboarding flow config              | `src/config/onboardingFlow.ts`        |
+| Habit types & configs               | `src/types/habits.ts`                 |
+| Color palette                       | `src/constants/colors.ts`             |
+| Typography scale                    | `src/constants/typography.ts`         |
+| Spacing scale                       | `src/constants/spacing.ts`            |
+| Theme objects                       | `src/constants/themes.ts`             |
+| Habit state                         | `src/store/habitStore.ts`             |
+| Onboarding state                    | `src/store/onboardingStore.ts`        |
+| Purchases state                     | `src/store/purchasesStore.ts`         |
+| Theme state                         | `src/store/themeStore.ts`             |
+| Blocking service                    | `src/services/blockingService.ts`     |
+| Shield service                      | `src/services/shieldService.ts`       |
+| Notification service                | `src/services/notificationService.ts` |
+| Habit engines                       | `src/services/habits/`                |
+| RevenueCat service                  | `src/services/purchases.ts`           |
+| Supabase service                    | `src/services/supabase.ts`            |
+| PostHog service                     | `src/services/posthog.ts`             |
+| App event emitter                   | `src/utils/events.ts`                 |
+
+---

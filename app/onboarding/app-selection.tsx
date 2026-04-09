@@ -1,33 +1,34 @@
 import { OnboardingHeader } from "@/components/OnboardingHeader";
-import { borderRadius, spacing, typeScale } from "@/constants";
 import { getNextStep, getProgressFraction } from "@/config/onboardingFlow";
+import { borderRadius, spacing, typeScale } from "@/constants";
 import { useSequentialFadeIn } from "@/hooks/useOnboardingAnimation";
 import { useOnboardingNext } from "@/hooks/useOnboardingNext";
 import { useThemedColors, useThemedStyles } from "@/hooks/useThemedStyles";
-import { AppGroupService } from "@/services/appGroups";
+import { BlockingService } from "@/services/blockingService";
+import { useHabitStore } from "@/store/habitStore";
 import { useOnboardingStore } from "@/store/onboardingStore";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { Briefcase, Globe, Lock, Moon, Unlock } from "lucide-react-native";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Modal,
-    Pressable,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Modal,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import {
-    AuthorizationStatus,
-    DeviceActivitySelectionView,
-    getAuthorizationStatus,
-    requestAuthorization,
+  AuthorizationStatus,
+  DeviceActivitySelectionView,
+  getAuthorizationStatus,
+  requestAuthorization,
 } from "react-native-device-activity";
 import AnimatedRN from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -82,41 +83,59 @@ export default function AppSelection() {
 
   const [screenFade] = useSequentialFadeIn(1, { duration: 300, stagger: 0 });
 
-  // step 1: app select | 2: access control | 3: unlocks count (unlocks mode) | 3/4: when to block
-  const [step, setStep] = useState(1);
-  const [blockMode, setBlockMode] = useState<"unlocks" | "blocked">("unlocks");
-
-  // Step 1
+  // App selector state
   const [isLoading, setIsLoading] = useState(true);
   const [familyActivitySelection, setFamilyActivitySelection] = useState<
     string | null
   >(null);
   const [applicationCount, setApplicationCount] = useState(0);
   const [categoryCount, setCategoryCount] = useState(0);
+  const [saving, setSaving] = useState(false);
 
-  // Step 3 (unlocks)
+  // Multi-step wizard state
+  const [step, setStep] = useState(1);
+  const [blockMode, setBlockMode] = useState<"unlocks" | "blocked">("unlocks");
   const [selectedUnlocks, setSelectedUnlocks] = useState(3);
   const [customUnlocks, setCustomUnlocks] = useState("");
-
-  // Step 3/4 (when to block)
-  const [startTime, setStartTime] = useState(new Date(2024, 0, 1, 9, 0));
-  const [endTime, setEndTime] = useState(new Date(2024, 0, 1, 17, 0));
-  const [selectedDays, setSelectedDays] = useState<string[]>([
+  const [selectedPreset, setSelectedPreset] = useState<number | null>(0);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date());
+  const [selectedDays, setSelectedDays] = useState([
     "mon",
     "tue",
     "wed",
     "thu",
     "fri",
+    "sat",
+    "sun",
   ]);
-  const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const slideAnim = useRef(new Animated.Value(300)).current;
+  const slideAnim = React.useRef(new Animated.Value(300)).current;
 
-  const [saving, setSaving] = useState(false);
+  const formatTime = (date: Date): string => {
+    return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+  };
 
-  const totalInternalSteps = blockMode === "unlocks" ? 4 : 3;
-  const internalStepFraction = (step - 1) / Math.max(totalInternalSteps - 1, 1);
+  const toggleDay = (id: string) => {
+    setSelectedDays((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id],
+    );
+  };
+
+  const handlePresetSelect = (index: number) => {
+    const preset = TIME_PRESETS[index];
+    setSelectedPreset(index);
+    const [sh, sm] = preset.start.split(":").map(Number);
+    const [eh, em] = preset.end.split(":").map(Number);
+    const s = new Date();
+    s.setHours(sh, sm, 0);
+    const e = new Date();
+    e.setHours(eh, em, 0);
+    setStartTime(s);
+    setEndTime(e);
+    setSelectedDays(preset.days);
+  };
 
   const flowProgress = useMemo(() => {
     const ctx = { screenTimePermissionGranted };
@@ -124,31 +143,8 @@ export default function AppSelection() {
     const nextProgress = nextStep
       ? getProgressFraction(nextStep.route, variant, ctx)
       : progressFraction;
-
-    return (
-      progressFraction +
-      (nextProgress - progressFraction) * internalStepFraction
-    );
-  }, [
-    internalStepFraction,
-    progressFraction,
-    screenTimePermissionGranted,
-    variant,
-  ]);
-
-  // ── Time picker animation ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (showStartPicker || showEndPicker) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 11,
-      }).start();
-    } else {
-      slideAnim.setValue(300);
-    }
-  }, [showStartPicker, showEndPicker]);
+    return progressFraction + (nextProgress - progressFraction) * 0;
+  }, [progressFraction, screenTimePermissionGranted, variant]);
 
   // ── Auth init ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -184,65 +180,32 @@ export default function AppSelection() {
   };
 
   const skipToNext = () => {
-    updateData({ selectedApps: [], selectedCategories: [] });
+    updateData({ familyActivitySelection: undefined });
     navigateNext();
   };
 
-  const formatTime = (d: Date) =>
-    `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-
-  const handlePresetSelect = (index: number) => {
-    const p = TIME_PRESETS[index];
-    setSelectedPreset(index);
-    const [sh, sm] = p.start.split(":").map(Number);
-    setStartTime(new Date(2024, 0, 1, sh, sm));
-    const [eh, em] = p.end.split(":").map(Number);
-    setEndTime(new Date(2024, 0, 1, eh, em));
-    setSelectedDays(p.days);
-  };
-
-  const toggleDay = (id: string) => {
-    setSelectedDays((prev) =>
-      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id],
-    );
-    setSelectedPreset(null);
-  };
-
-  // ── Final create ───────────────────────────────────────────────────────────
+  // ── Confirm selection ──────────────────────────────────────────────────────
   const handleCreate = async () => {
-    if (selectedDays.length === 0) {
-      Alert.alert("Select days", "Please select at least one day.");
+    if (!familyActivitySelection) {
+      Alert.alert("Select apps", "Please select at least one app to block.");
       return;
     }
     setSaving(true);
     try {
-      const groups = await AppGroupService.getAppGroups();
-      const groupName =
-        groups.length === 0 ? "Group 1" : `Group ${groups.length + 1}`;
-      const unlocks =
-        blockMode === "unlocks"
-          ? customUnlocks
-            ? parseInt(customUnlocks, 10)
-            : selectedUnlocks
-          : 0;
-      await AppGroupService.createAppGroup(
-        groupName,
-        [],
-        30,
-        unlocks,
-        true,
-        familyActivitySelection || undefined,
-        applicationCount,
-        categoryCount,
-      );
+      // Save the selection token to the habit store
+      useHabitStore.getState().setBlockedApps(familyActivitySelection, {
+        apps: applicationCount,
+        categories: categoryCount,
+      });
+      // Register with native layer and activate blocking
+      await BlockingService.lockApps(familyActivitySelection);
       updateData({
-        selectedApps: familyActivitySelection ? [familyActivitySelection] : [],
-        selectedCategories: [],
+        familyActivitySelection,
       });
       navigateNext();
     } catch (error) {
-      console.error("Error creating group:", error);
-      Alert.alert("Error", "Failed to create group. Please try again.");
+      console.error("Error saving blocked apps:", error);
+      Alert.alert("Error", "Failed to save blocked apps. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -273,7 +236,9 @@ export default function AppSelection() {
           <StatusBar barStyle={theme.statusBar} />
           <OnboardingHeader
             progressFraction={flowProgress}
-            onBack={() => (step > 1 ? setStep((prev) => prev - 1) : router.back())}
+            onBack={() =>
+              step > 1 ? setStep((prev) => prev - 1) : router.back()
+            }
           />
           <View style={s.titleSection}>
             <Text style={s.title}>Select Apps to Block</Text>

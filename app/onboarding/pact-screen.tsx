@@ -138,7 +138,7 @@ export default function PactScreen() {
         {habitPriority.length > 0 && (
           <View style={s.summaryCard}>
             <Text style={[s.summaryHeader, { color: theme.text.secondary }]}>
-              HABITS YOU'RE COMMITTING TO
+              {"HABITS YOU'RE COMMITTING TO"}
             </Text>
             {habitPriority.map((type, index) => {
               const meta = HABIT_META[type];

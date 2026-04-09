@@ -32,7 +32,7 @@ export default function DailyChecklist({
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text.primary }]}>
-          Today's Habits
+          {"Today's Habits"}
         </Text>
         <View
           style={[

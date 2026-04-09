@@ -195,7 +195,7 @@ export default function ConfigScreentimeScreen() {
           <Text style={s.infoText}>
             Your apps will stay open until you exceed{" "}
             <Text style={s.infoHighlight}>{formatLimit()}</Text> of screen time.
-            After that, they'll be blocked for the rest of the day.
+            {"After that, they'll be blocked for the rest of the day."}
           </Text>
         </Animated.View>
       </View>
