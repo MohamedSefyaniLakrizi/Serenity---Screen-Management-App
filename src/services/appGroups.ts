@@ -1,12 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, AppStateStatus, Platform } from "react-native";
 import {
-  blockSelection,
-  setFamilyActivitySelectionId,
-  unblockSelection,
-  userDefaultsClearWithPrefix,
-  userDefaultsRemove,
-  userDefaultsSet,
+    blockSelection,
+    setFamilyActivitySelectionId,
+    unblockSelection,
+    userDefaultsClearWithPrefix,
+    userDefaultsRemove,
+    userDefaultsSet,
 } from "react-native-device-activity";
 
 export interface AppInfo {

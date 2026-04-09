@@ -4,34 +4,34 @@ import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useThemedColors } from "@/hooks/useThemedStyles";
 import { useAppStore } from "@/store/appStore";
 import { useOnboardingStore } from "@/store/onboardingStore";
-import { useThemeStore } from "@/store/themeStore";
 import { usePurchasesStore } from "@/store/purchasesStore";
+import { useThemeStore } from "@/store/themeStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Purchases from "react-native-purchases";
 import { router } from "expo-router";
 import {
-  Bell,
-  ChevronRight,
-  Crown,
-  FlaskConical,
-  Info,
-  Moon,
-  Settings2,
-  Shield,
-  Smartphone,
-  Sun,
-  User,
+    Bell,
+    ChevronRight,
+    Crown,
+    FlaskConical,
+    Info,
+    Moon,
+    Settings2,
+    Shield,
+    Smartphone,
+    Sun,
+    User,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import Purchases from "react-native-purchases";
 import RevenueCatUI from "react-native-purchases-ui";
 
 export default function SettingsScreen() {
@@ -155,7 +155,10 @@ export default function SettingsScreen() {
             try {
               await Purchases.invalidateCustomerInfoCache();
               usePurchasesStore.setState({ isPro: false, customerInfo: null });
-              Alert.alert("Done", "Premium removed for this session. Restart or re-fetch to sync with RevenueCat.");
+              Alert.alert(
+                "Done",
+                "Premium removed for this session. Restart or re-fetch to sync with RevenueCat.",
+              );
             } catch (err) {
               console.error("[Dev] removePremium error:", err);
               Alert.alert("Error", "Could not remove premium.");
@@ -639,7 +642,10 @@ export default function SettingsScreen() {
             title="Remove Premium (Dev)"
             variant="outline"
             onPress={handleRemovePremium}
-            style={StyleSheet.flatten([styles.resetButton, { borderColor: "#E74C3C", marginTop: 0 }])}
+            style={StyleSheet.flatten([
+              styles.resetButton,
+              { borderColor: "#E74C3C", marginTop: 0 },
+            ])}
           />
         )}
 

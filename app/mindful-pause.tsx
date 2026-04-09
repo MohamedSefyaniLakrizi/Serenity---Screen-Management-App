@@ -17,7 +17,6 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { unblockSelection } from "react-native-device-activity";
 import React, {
     useCallback,
     useEffect,
@@ -34,6 +33,7 @@ import {
     Text,
     View,
 } from "react-native";
+import { unblockSelection } from "react-native-device-activity";
 import Animated, {
     Easing,
     useAnimatedProps,
@@ -352,7 +352,10 @@ export default function MindfulPauseScreen() {
         try {
           unblockSelection({ activitySelectionId: group.id });
         } catch (e) {
-          console.warn("[MindfulPause] unblockSelection failed (non-fatal):", e);
+          console.warn(
+            "[MindfulPause] unblockSelection failed (non-fatal):",
+            e,
+          );
         }
       }
     }

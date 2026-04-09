@@ -1,4 +1,4 @@
-import { habitColors } from './colors';
+import { habitColors } from "./colors";
 
 // Light theme color palette
 export const lightTheme = {

@@ -1,15 +1,15 @@
-import { OnboardingService } from '@/services/supabase';
-import { OnboardingData } from '@/types/onboarding';
-import { appEvents, EVENTS } from '@/utils/events';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-import { create } from 'zustand';
+import { OnboardingService } from "@/services/supabase";
+import { OnboardingData } from "@/types/onboarding";
+import { appEvents, EVENTS } from "@/utils/events";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+import { create } from "zustand";
 
 interface OnboardingState extends OnboardingData {
   currentStep: number;
   totalSteps: number;
-  
+
   // Actions
   setCurrentStep: (step: number) => void;
   nextStep: () => void;
@@ -35,7 +35,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   problemApps: [],
   selectedApps: [],
   selectedCategories: [],
-  selectionType: 'categories',
+  selectionType: "categories",
   whenUsePhoneMost: null,
   reasonForChange: null,
   analyticsEnabled: true,
@@ -64,32 +64,34 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     set(data);
     // Auto-save to AsyncStorage
     const state = get();
-    AsyncStorage.setItem('onboardingData', JSON.stringify(state)).catch(console.error);
+    AsyncStorage.setItem("onboardingData", JSON.stringify(state)).catch(
+      console.error,
+    );
   },
 
   completeOnboarding: async () => {
     const state = get();
     const completedAt = new Date().toISOString();
-    
-    console.log('🎯 Starting onboarding completion...');
-    
+
+    console.log("🎯 Starting onboarding completion...");
+
     // Update local state first
     set({ completedAt });
-    
+
     // ALWAYS mark onboarding as complete in AsyncStorage FIRST
     try {
-      console.log('💾 Saving completion to AsyncStorage...');
-      await AsyncStorage.setItem('onboardingCompleted', 'true');
-      await AsyncStorage.setItem('onboardingData', JSON.stringify(get()));
-      console.log('✅ AsyncStorage save successful');
-      
+      console.log("💾 Saving completion to AsyncStorage...");
+      await AsyncStorage.setItem("onboardingCompleted", "true");
+      await AsyncStorage.setItem("onboardingData", JSON.stringify(get()));
+      console.log("✅ AsyncStorage save successful");
+
       // Emit event for immediate UI update
       appEvents.emit(EVENTS.ONBOARDING_COMPLETED);
-      console.log('📢 Emitted onboarding completed event');
+      console.log("📢 Emitted onboarding completed event");
     } catch (error) {
-      console.error('❌ Error saving to AsyncStorage:', error);
+      console.error("❌ Error saving to AsyncStorage:", error);
     }
-    
+
     // Prepare data for Supabase
     const onboardingRecord = {
       primary_goal: state.primaryGoal,
@@ -107,26 +109,27 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       analytics_enabled: state.analyticsEnabled,
       completed_at: completedAt,
       device_platform: Platform.OS,
-      device_version: Constants.expoConfig?.version || '1.0.0',
+      device_version: Constants.expoConfig?.version || "1.0.0",
       name: state.name,
       email: state.email,
     };
 
     // Try to save to Supabase, but don't block on it
     try {
-      console.log('☁️ Attempting to save to Supabase...');
-      const result = await OnboardingService.saveOnboardingData(onboardingRecord);
+      console.log("☁️ Attempting to save to Supabase...");
+      const result =
+        await OnboardingService.saveOnboardingData(onboardingRecord);
       if (result.success) {
-        console.log('✅ Supabase save successful');
+        console.log("✅ Supabase save successful");
       } else {
-        console.log('⚠️ Supabase save failed:', result.error);
+        console.log("⚠️ Supabase save failed:", result.error);
       }
     } catch (error) {
-      console.error('❌ Supabase save error:', error);
+      console.error("❌ Supabase save error:", error);
     }
 
     // Always return success since local save is what matters
-    console.log('✅ Onboarding completion finished');
+    console.log("✅ Onboarding completion finished");
     return { success: true };
   },
 
@@ -146,31 +149,31 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       analyticsEnabled: true,
       completedAt: null,
     });
-    AsyncStorage.removeItem('onboardingCompleted');
-    AsyncStorage.removeItem('onboardingData');
-    
+    AsyncStorage.removeItem("onboardingCompleted");
+    AsyncStorage.removeItem("onboardingData");
+
     // Emit event for immediate UI update
     appEvents.emit(EVENTS.ONBOARDING_RESET);
-    console.log('📢 Emitted onboarding reset event');
+    console.log("📢 Emitted onboarding reset event");
   },
 
   loadFromStorage: async () => {
     try {
-      const savedData = await AsyncStorage.getItem('onboardingData');
+      const savedData = await AsyncStorage.getItem("onboardingData");
       if (savedData) {
         const parsed = JSON.parse(savedData);
         set(parsed);
       }
     } catch (error) {
-      console.error('Error loading onboarding data from storage:', error);
+      console.error("Error loading onboarding data from storage:", error);
     }
   },
 
   saveToStorage: async () => {
     try {
-      await AsyncStorage.setItem('onboardingData', JSON.stringify(get()));
+      await AsyncStorage.setItem("onboardingData", JSON.stringify(get()));
     } catch (error) {
-      console.error('Error saving onboarding data to storage:', error);
+      console.error("Error saving onboarding data to storage:", error);
     }
   },
 }));

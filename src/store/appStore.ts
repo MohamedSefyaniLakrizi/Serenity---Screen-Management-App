@@ -1,6 +1,6 @@
-import { ScreenTimeData, StreakData, UserPreferences } from '@/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { create } from 'zustand';
+import { ScreenTimeData, StreakData, UserPreferences } from "@/types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { create } from "zustand";
 
 interface AppState {
   // User
@@ -47,7 +47,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { streakData } = get();
     if (!streakData) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
 
     // Don't update if already updated today
     if (streakData.lastUpdated === today) return;
@@ -79,9 +79,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadFromStorage: async () => {
     try {
       const [prefsData, todayDataStr, streakDataStr] = await Promise.all([
-        AsyncStorage.getItem('userPreferences'),
-        AsyncStorage.getItem('todayData'),
-        AsyncStorage.getItem('streakData'),
+        AsyncStorage.getItem("userPreferences"),
+        AsyncStorage.getItem("todayData"),
+        AsyncStorage.getItem("streakData"),
       ]);
 
       set({
@@ -90,7 +90,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         streakData: streakDataStr ? JSON.parse(streakDataStr) : null,
       });
     } catch (error) {
-      console.error('Error loading from storage:', error);
+      console.error("Error loading from storage:", error);
     }
   },
 
@@ -99,12 +99,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { userPreferences, todayData, streakData } = get();
 
       await Promise.all([
-        AsyncStorage.setItem('userPreferences', JSON.stringify(userPreferences)),
-        AsyncStorage.setItem('todayData', JSON.stringify(todayData)),
-        AsyncStorage.setItem('streakData', JSON.stringify(streakData)),
+        AsyncStorage.setItem(
+          "userPreferences",
+          JSON.stringify(userPreferences),
+        ),
+        AsyncStorage.setItem("todayData", JSON.stringify(todayData)),
+        AsyncStorage.setItem("streakData", JSON.stringify(streakData)),
       ]);
     } catch (error) {
-      console.error('Error saving to storage:', error);
+      console.error("Error saving to storage:", error);
     }
   },
 }));

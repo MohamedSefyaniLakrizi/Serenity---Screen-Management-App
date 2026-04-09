@@ -18,9 +18,7 @@
       },
       "entitlements": {
         "com.apple.developer.family-controls": true,
-        "com.apple.security.application-groups": [
-          "group.com.msl.serenity"
-        ]
+        "com.apple.security.application-groups": ["group.com.msl.serenity"]
       }
     },
     "plugins": [

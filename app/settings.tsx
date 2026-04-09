@@ -5,24 +5,34 @@ import { useAppStore } from "@/store/appStore";
 import { useThemeStore } from "@/store/themeStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { Bell, ChevronRight, Info, Moon, Shield, Smartphone, Sun, User } from "lucide-react-native";
+import {
+    Bell,
+    ChevronRight,
+    Info,
+    Moon,
+    Shield,
+    Smartphone,
+    Sun,
+    User,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { userPreferences, setUserPreferences, loadFromStorage } = useAppStore();
+  const { userPreferences, setUserPreferences, loadFromStorage } =
+    useAppStore();
   const { themeMode, setThemeMode } = useThemeStore();
   const themedColors = useThemedColors();
-  
+
   const [dailyLimit, setDailyLimit] = useState("");
   const [notifications, setNotifications] = useState(true);
   const [reminderFrequency, setReminderFrequency] = useState("");
@@ -35,7 +45,9 @@ export default function SettingsScreen() {
     if (userPreferences) {
       setDailyLimit((userPreferences.dailyLimit || 120).toString());
       setNotifications(userPreferences.notificationsEnabled);
-      setReminderFrequency((userPreferences.reminderFrequency || 30).toString());
+      setReminderFrequency(
+        (userPreferences.reminderFrequency || 30).toString(),
+      );
     }
   }, [userPreferences]);
 
@@ -74,21 +86,21 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               await AsyncStorage.multiRemove([
-                'onboardingCompleted',
-                'onboardingData',
-                'userPreferences',
-                'todayData',
-                'streakData',
-                '@app_groups',
-                '@theme_mode',
+                "onboardingCompleted",
+                "onboardingData",
+                "userPreferences",
+                "todayData",
+                "streakData",
+                "@app_groups",
+                "@theme_mode",
               ]);
-              router.replace('/onboarding/' as any);
+              router.replace("/onboarding/" as any);
             } catch (error) {
               Alert.alert("Error", "Failed to reset app");
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -96,27 +108,42 @@ export default function SettingsScreen() {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (hours === 0) return `${mins} minutes`;
-    return `${hours} hour${hours > 1 ? 's' : ''} ${mins > 0 ? `${mins} min` : ''}`;
+    return `${hours} hour${hours > 1 ? "s" : ""} ${mins > 0 ? `${mins} min` : ""}`;
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: themedColors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: themedColors.background }]}
+    >
       <View style={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <Text style={[styles.backText, { color: themedColors.primary }]}>← Back</Text>
+            <Text style={[styles.backText, { color: themedColors.primary }]}>
+              ← Back
+            </Text>
           </TouchableOpacity>
-          <Text style={[styles.title, { color: themedColors.textDark }]}>Settings</Text>
-          <Text style={[styles.subtitle, { color: themedColors.textGray }]}>Manage your preferences</Text>
+          <Text style={[styles.title, { color: themedColors.textDark }]}>
+            Settings
+          </Text>
+          <Text style={[styles.subtitle, { color: themedColors.textGray }]}>
+            Manage your preferences
+          </Text>
         </View>
 
         {/* Theme Selection */}
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: themedColors.textDark }]}>Appearance</Text>
-          <Text style={[styles.sectionDescription, { color: themedColors.textGray }]}>
+          <Text style={[styles.sectionTitle, { color: themedColors.textDark }]}>
+            Appearance
+          </Text>
+          <Text
+            style={[
+              styles.sectionDescription,
+              { color: themedColors.textGray },
+            ]}
+          >
             Choose your preferred theme
           </Text>
           <View style={styles.themeOptions}>
@@ -124,15 +151,32 @@ export default function SettingsScreen() {
               style={[
                 styles.themeOption,
                 { borderColor: themedColors.border },
-                themeMode === 'light' && { borderColor: themedColors.primary, borderWidth: 2 }
+                themeMode === "light" && {
+                  borderColor: themedColors.primary,
+                  borderWidth: 2,
+                },
               ]}
-              onPress={() => setThemeMode('light')}
+              onPress={() => setThemeMode("light")}
             >
-              <Sun size={24} color={themeMode === 'light' ? themedColors.primary : themedColors.textGray} />
-              <Text style={[
-                styles.themeOptionText,
-                { color: themeMode === 'light' ? themedColors.primary : themedColors.textGray }
-              ]}>
+              <Sun
+                size={24}
+                color={
+                  themeMode === "light"
+                    ? themedColors.primary
+                    : themedColors.textGray
+                }
+              />
+              <Text
+                style={[
+                  styles.themeOptionText,
+                  {
+                    color:
+                      themeMode === "light"
+                        ? themedColors.primary
+                        : themedColors.textGray,
+                  },
+                ]}
+              >
                 Light
               </Text>
             </TouchableOpacity>
@@ -141,15 +185,32 @@ export default function SettingsScreen() {
               style={[
                 styles.themeOption,
                 { borderColor: themedColors.border },
-                themeMode === 'dark' && { borderColor: themedColors.primary, borderWidth: 2 }
+                themeMode === "dark" && {
+                  borderColor: themedColors.primary,
+                  borderWidth: 2,
+                },
               ]}
-              onPress={() => setThemeMode('dark')}
+              onPress={() => setThemeMode("dark")}
             >
-              <Moon size={24} color={themeMode === 'dark' ? themedColors.primary : themedColors.textGray} />
-              <Text style={[
-                styles.themeOptionText,
-                { color: themeMode === 'dark' ? themedColors.primary : themedColors.textGray }
-              ]}>
+              <Moon
+                size={24}
+                color={
+                  themeMode === "dark"
+                    ? themedColors.primary
+                    : themedColors.textGray
+                }
+              />
+              <Text
+                style={[
+                  styles.themeOptionText,
+                  {
+                    color:
+                      themeMode === "dark"
+                        ? themedColors.primary
+                        : themedColors.textGray,
+                  },
+                ]}
+              >
                 Dark
               </Text>
             </TouchableOpacity>
@@ -158,15 +219,32 @@ export default function SettingsScreen() {
               style={[
                 styles.themeOption,
                 { borderColor: themedColors.border },
-                themeMode === 'system' && { borderColor: themedColors.primary, borderWidth: 2 }
+                themeMode === "system" && {
+                  borderColor: themedColors.primary,
+                  borderWidth: 2,
+                },
               ]}
-              onPress={() => setThemeMode('system')}
+              onPress={() => setThemeMode("system")}
             >
-              <Smartphone size={24} color={themeMode === 'system' ? themedColors.primary : themedColors.textGray} />
-              <Text style={[
-                styles.themeOptionText,
-                { color: themeMode === 'system' ? themedColors.primary : themedColors.textGray }
-              ]}>
+              <Smartphone
+                size={24}
+                color={
+                  themeMode === "system"
+                    ? themedColors.primary
+                    : themedColors.textGray
+                }
+              />
+              <Text
+                style={[
+                  styles.themeOptionText,
+                  {
+                    color:
+                      themeMode === "system"
+                        ? themedColors.primary
+                        : themedColors.textGray,
+                  },
+                ]}
+              >
                 System
               </Text>
             </TouchableOpacity>
@@ -236,7 +314,9 @@ export default function SettingsScreen() {
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Your Goal</Text>
           <Text style={styles.settingDescription}>
-            Current goal: {userPreferences?.goal?.replace('-', ' ').toUpperCase() || 'Not set'}
+            Current goal:{" "}
+            {userPreferences?.goal?.replace("-", " ").toUpperCase() ||
+              "Not set"}
           </Text>
           <Text style={styles.helperText}>
             To change your goal, reset the app and go through onboarding again
@@ -370,14 +450,14 @@ const styles = StyleSheet.create({
 
   // Theme Options
   themeOptions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
   themeOption: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: spacing.lg,
     borderRadius: borderRadius.medium,
     borderWidth: 1,

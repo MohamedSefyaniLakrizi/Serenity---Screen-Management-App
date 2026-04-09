@@ -6,32 +6,49 @@ export interface OnboardingData {
   // User Profile
   name?: string;
   email?: string;
-  
+
   // Primary Problem
-  primaryProblem?: 'too-much-time' | 'difficulty-focusing' | 'poor-sleep' | 'missing-moments' | 'anxious-stressed' | 'procrastinating';
-  
+  primaryProblem?:
+    | "too-much-time"
+    | "difficulty-focusing"
+    | "poor-sleep"
+    | "missing-moments"
+    | "anxious-stressed"
+    | "procrastinating";
+
   // Goals & Preferences
-  primaryGoal: 'reduce-usage' | 'build-focus' | 'better-sleep' | 'life-balance' | null;
+  primaryGoal:
+    | "reduce-usage"
+    | "build-focus"
+    | "better-sleep"
+    | "life-balance"
+    | null;
   dailyLimitHours: number | null;
   dailyLimitMinutes: number | null;
-  
+
   // Permissions
   notificationsEnabled: boolean;
   screenTimePermissionGranted: boolean;
-  
+
   // Analytics & Insights
   currentDailyUsageHours: number | null;
-  currentDailyUsageRange: 'under-3' | '3-5' | '5-7' | '7-9' | '9+' | null;
+  currentDailyUsageRange: "under-3" | "3-5" | "5-7" | "7-9" | "9+" | null;
   problemApps: string[];
   selectedApps?: string[];
   selectedCategories?: string[];
-  selectionType?: 'apps' | 'categories';
-  whenUsePhoneMost: 'morning' | 'afternoon' | 'evening' | 'night' | 'all-day' | null;
+  selectionType?: "apps" | "categories";
+  whenUsePhoneMost:
+    | "morning"
+    | "afternoon"
+    | "evening"
+    | "night"
+    | "all-day"
+    | null;
   reasonForChange: string | null;
-  
+
   // Analytics consent
   analyticsEnabled: boolean;
-  
+
   // Metadata
   completedAt: string | null;
   deviceInfo?: {
