@@ -1,8 +1,6 @@
 import { OnboardingHeader } from "@/components/OnboardingHeader";
-import { Button } from "@/components/ui";
+import { borderRadius, spacing, typeScale } from "@/constants";
 import { getNextStep, getProgressFraction } from "@/config/onboardingFlow";
-import { spacing } from "@/constants";
-import { FONTS } from "@/constants/typography";
 import { useSequentialFadeIn } from "@/hooks/useOnboardingAnimation";
 import { useOnboardingNext } from "@/hooks/useOnboardingNext";
 import { useThemedColors, useThemedStyles } from "@/hooks/useThemedStyles";
@@ -250,23 +248,17 @@ export default function AppSelection() {
     }
   };
 
+  const s = styles(theme);
+
   // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <AnimatedRN.View
-        style={[
-          styles.container,
-          { backgroundColor: theme.background },
-          screenFade,
-        ]}
-      >
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <AnimatedRN.View style={[s.container, screenFade]}>
+        <SafeAreaView style={s.safeArea} edges={["top"]}>
           <StatusBar barStyle={theme.statusBar} />
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-              Requesting permission…
-            </Text>
+          <View style={s.centered}>
+            <ActivityIndicator size="large" color={theme.accent.primary} />
+            <Text style={s.loadingText}>Requesting permission…</Text>
           </View>
         </SafeAreaView>
       </AnimatedRN.View>
@@ -276,35 +268,23 @@ export default function AppSelection() {
   // ── Step 1: App selection ──────────────────────────────────────────────────
   if (step === 1) {
     return (
-      <AnimatedRN.View
-        style={[
-          styles.container,
-          { backgroundColor: theme.background },
-          screenFade,
-        ]}
-      >
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <AnimatedRN.View style={[s.container, screenFade]}>
+        <SafeAreaView style={s.safeArea} edges={["top"]}>
           <StatusBar barStyle={theme.statusBar} />
           <OnboardingHeader
             progressFraction={flowProgress}
-            onBack={() => (step > 1 ? setStep((s) => s - 1) : router.back())}
+            onBack={() => (step > 1 ? setStep((prev) => prev - 1) : router.back())}
           />
-          <View style={styles.titleSection}>
-            <Text style={[styles.title, { color: theme.textPrimary }]}>
-              Select Apps
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Choose the apps and categories you want to limit or block
+          <View style={s.titleSection}>
+            <Text style={s.title}>Select Apps to Block</Text>
+            <Text style={s.subtitle}>
+              Choose ALL apps except the essentials you need (phone, messages,
+              maps). These will be blocked until you complete your daily habits.
             </Text>
           </View>
-          <View
-            style={[
-              styles.pickerContainer,
-              { backgroundColor: theme.background },
-            ]}
-          >
+          <View style={s.pickerContainer}>
             <DeviceActivitySelectionView
-              style={[styles.picker, { backgroundColor: theme.background }]}
+              style={s.picker}
               onSelectionChange={(event: any) => {
                 const {
                   familyActivitySelection: token,
@@ -316,27 +296,14 @@ export default function AppSelection() {
                 setCategoryCount(cats ?? 0);
               }}
               familyActivitySelection={familyActivitySelection}
-              headerText="Select apps to limit"
-              footerText="Your selection is private and stays on-device"
+              headerText="Select apps to block"
+              footerText="The more apps you block, the stronger your commitment."
               appearance={isDark ? "dark" : "light"}
             />
           </View>
-          <View
-            style={[
-              styles.actions,
-              {
-                backgroundColor: theme.background,
-                borderTopColor: theme.border,
-              },
-            ]}
-          >
+          <View style={s.actions}>
             {applicationCount + categoryCount > 0 && (
-              <Text
-                style={[
-                  styles.selectionSummary,
-                  { color: theme.textSecondary },
-                ]}
-              >
+              <Text style={s.selectionSummary}>
                 {applicationCount > 0 &&
                   `${applicationCount} app${applicationCount !== 1 ? "s" : ""}`}
                 {applicationCount > 0 && categoryCount > 0 && "  ·  "}
@@ -344,7 +311,13 @@ export default function AppSelection() {
                   `${categoryCount} categor${categoryCount !== 1 ? "ies" : "y"}`}
               </Text>
             )}
-            <Button title="Continue" onPress={() => setStep(2)} />
+            <TouchableOpacity
+              style={s.button}
+              activeOpacity={0.8}
+              onPress={() => setStep(2)}
+            >
+              <Text style={s.buttonText}>Continue</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </AnimatedRN.View>
@@ -354,30 +327,29 @@ export default function AppSelection() {
   // ── Step 2: Access control ─────────────────────────────────────────────────
   if (step === 2) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={s.container}>
+        <SafeAreaView style={s.safeArea} edges={["top"]}>
           <StatusBar barStyle={theme.statusBar} />
           <OnboardingHeader
             progressFraction={flowProgress}
-            onBack={() => (step > 1 ? setStep((s) => s - 1) : router.back())}
+            onBack={() => setStep((prev) => prev - 1)}
           />
-          <View style={[styles.content, { paddingHorizontal: spacing.lg }]}>
-            <View style={styles.titleSection}>
-              <Text style={[styles.title, { color: theme.textPrimary }]}>
-                Access Control
-              </Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Choose how to limit access to the selected apps
-              </Text>
-            </View>
-            <View style={styles.modeGrid}>
+          <View style={s.titleSection}>
+            <Text style={s.title}>Access Control</Text>
+            <Text style={s.subtitle}>
+              Choose how to limit access to the selected apps
+            </Text>
+          </View>
+          <View style={s.sections}>
+            <View style={s.modeGrid}>
               <TouchableOpacity
                 style={[
-                  styles.modeCard,
+                  s.modeCard,
                   {
-                    backgroundColor: theme.surface,
                     borderColor:
-                      blockMode === "unlocks" ? theme.primary : theme.border,
+                      blockMode === "unlocks"
+                        ? theme.accent.primary
+                        : theme.border.default,
                   },
                 ]}
                 onPress={() => setBlockMode("unlocks")}
@@ -385,40 +357,45 @@ export default function AppSelection() {
               >
                 <View
                   style={[
-                    styles.modeIcon,
+                    s.modeIcon,
                     {
                       backgroundColor:
                         blockMode === "unlocks"
-                          ? theme.primaryLight
-                          : theme.surfaceSecondary,
+                          ? theme.accent.subtle
+                          : theme.bg.subtle,
                     },
                   ]}
                 >
                   <Unlock
-                    size={24}
+                    size={20}
+                    strokeWidth={1.5}
                     color={
                       blockMode === "unlocks"
-                        ? theme.primary
-                        : theme.textSecondary
+                        ? theme.accent.primary
+                        : theme.text.secondary
                     }
                   />
                 </View>
-                <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
+                <Text
+                  style={[
+                    s.modeTitle,
+                    blockMode === "unlocks" && { color: theme.text.primary },
+                  ]}
+                >
                   Limited Unlocks
                 </Text>
-                <Text
-                  style={[styles.modeSubtitle, { color: theme.textSecondary }]}
-                >
+                <Text style={s.modeSubtitle}>
                   Allow a set number of unlocks per day
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
-                  styles.modeCard,
+                  s.modeCard,
                   {
-                    backgroundColor: theme.surface,
                     borderColor:
-                      blockMode === "blocked" ? theme.primary : theme.border,
+                      blockMode === "blocked"
+                        ? theme.accent.primary
+                        : theme.border.default,
                   },
                 ]}
                 onPress={() => setBlockMode("blocked")}
@@ -426,45 +403,47 @@ export default function AppSelection() {
               >
                 <View
                   style={[
-                    styles.modeIcon,
+                    s.modeIcon,
                     {
                       backgroundColor:
                         blockMode === "blocked"
-                          ? theme.primaryLight
-                          : theme.surfaceSecondary,
+                          ? theme.accent.subtle
+                          : theme.bg.subtle,
                     },
                   ]}
                 >
                   <Lock
-                    size={24}
+                    size={20}
+                    strokeWidth={1.5}
                     color={
                       blockMode === "blocked"
-                        ? theme.primary
-                        : theme.textSecondary
+                        ? theme.accent.primary
+                        : theme.text.secondary
                     }
                   />
                 </View>
-                <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
+                <Text
+                  style={[
+                    s.modeTitle,
+                    blockMode === "blocked" && { color: theme.text.primary },
+                  ]}
+                >
                   Fully Blocked
                 </Text>
-                <Text
-                  style={[styles.modeSubtitle, { color: theme.textSecondary }]}
-                >
+                <Text style={s.modeSubtitle}>
                   Block completely with no access
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
-          <View
-            style={[
-              styles.actions,
-              {
-                backgroundColor: theme.background,
-                borderTopColor: theme.border,
-              },
-            ]}
-          >
-            <Button title="Continue" onPress={() => setStep(3)} />
+          <View style={s.actions}>
+            <TouchableOpacity
+              style={s.button}
+              activeOpacity={0.8}
+              onPress={() => setStep(3)}
+            >
+              <Text style={s.buttonText}>Continue</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -474,91 +453,88 @@ export default function AppSelection() {
   // ── Step 3: Unlocks count (only if unlocks mode) ───────────────────────────
   if (step === 3 && blockMode === "unlocks") {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={s.container}>
+        <SafeAreaView style={s.safeArea} edges={["top"]}>
           <StatusBar barStyle={theme.statusBar} />
           <OnboardingHeader
             progressFraction={flowProgress}
-            onBack={() => (step > 1 ? setStep((s) => s - 1) : router.back())}
+            onBack={() => setStep((prev) => prev - 1)}
           />
-          <View style={[styles.content, { paddingHorizontal: spacing.lg }]}>
-            <View style={styles.titleSection}>
-              <Text style={[styles.title, { color: theme.textPrimary }]}>
-                Daily Unlocks
-              </Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                How many times can you unlock these apps per day?
-              </Text>
-            </View>
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-                Quick Select
-              </Text>
-              <View style={styles.presetsGrid}>
-                {UNLOCK_PRESETS.map((preset) => (
-                  <TouchableOpacity
-                    key={preset}
-                    style={[
-                      styles.presetButton,
-                      {
-                        backgroundColor: theme.surface,
-                        borderColor:
-                          !customUnlocks && selectedUnlocks === preset
-                            ? theme.primary
-                            : theme.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      setSelectedUnlocks(preset);
-                      setCustomUnlocks("");
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text
+          <View style={s.titleSection}>
+            <Text style={s.title}>Daily Unlocks</Text>
+            <Text style={s.subtitle}>
+              How many times can you unlock these apps per day?
+            </Text>
+          </View>
+          <View style={s.sections}>
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Quick Select</Text>
+              <View style={s.presetsGrid}>
+                {UNLOCK_PRESETS.map((preset) => {
+                  const active = !customUnlocks && selectedUnlocks === preset;
+                  return (
+                    <TouchableOpacity
+                      key={preset}
                       style={[
-                        styles.presetNumber,
+                        s.presetButton,
                         {
-                          color:
-                            !customUnlocks && selectedUnlocks === preset
-                              ? theme.primary
-                              : theme.textPrimary,
+                          borderColor: active
+                            ? theme.accent.primary
+                            : theme.border.default,
+                          backgroundColor: active
+                            ? theme.accent.subtle
+                            : theme.bg.elevated,
                         },
                       ]}
+                      onPress={() => {
+                        setSelectedUnlocks(preset);
+                        setCustomUnlocks("");
+                      }}
+                      activeOpacity={0.7}
                     >
-                      {preset}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.presetLabel,
-                        {
-                          color:
-                            !customUnlocks && selectedUnlocks === preset
-                              ? theme.primary
-                              : theme.textSecondary,
-                        },
-                      ]}
-                    >
-                      unlocks
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          s.presetNumber,
+                          {
+                            color: active
+                              ? theme.accent.primary
+                              : theme.text.primary,
+                          },
+                        ]}
+                      >
+                        {preset}
+                      </Text>
+                      <Text
+                        style={[
+                          s.presetLabel,
+                          {
+                            color: active
+                              ? theme.accent.primary
+                              : theme.text.secondary,
+                          },
+                        ]}
+                      >
+                        unlocks
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-                Or Enter Custom Amount
-              </Text>
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Or Enter Custom Amount</Text>
               <TextInput
                 style={[
-                  styles.customInput,
+                  s.customInput,
                   {
-                    backgroundColor: theme.surface,
-                    borderColor: customUnlocks ? theme.primary : theme.border,
-                    color: theme.textPrimary,
+                    borderColor: customUnlocks
+                      ? theme.accent.primary
+                      : theme.border.default,
+                    color: theme.text.primary,
                   },
                 ]}
                 placeholder="Enter number"
-                placeholderTextColor={theme.textTertiary}
+                placeholderTextColor={theme.text.tertiary}
                 value={customUnlocks}
                 onChangeText={(t) => {
                   setCustomUnlocks(t);
@@ -569,17 +545,10 @@ export default function AppSelection() {
               />
             </View>
           </View>
-          <View
-            style={[
-              styles.actions,
-              {
-                backgroundColor: theme.background,
-                borderTopColor: theme.border,
-              },
-            ]}
-          >
-            <Button
-              title="Continue"
+          <View style={s.actions}>
+            <TouchableOpacity
+              style={s.button}
+              activeOpacity={0.8}
               onPress={() => {
                 const u = customUnlocks
                   ? parseInt(customUnlocks, 10)
@@ -590,7 +559,9 @@ export default function AppSelection() {
                 }
                 setStep(4);
               }}
-            />
+            >
+              <Text style={s.buttonText}>Continue</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -599,50 +570,52 @@ export default function AppSelection() {
 
   // ── Step 3 (blocked) or 4 (unlocks): When to block ────────────────────────
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={s.container}>
+      <SafeAreaView style={s.safeArea} edges={["top"]}>
         <StatusBar barStyle={theme.statusBar} />
         <OnboardingHeader
           progressFraction={flowProgress}
-          onBack={() => (step > 1 ? setStep((s) => s - 1) : router.back())}
+          onBack={() => setStep((prev) => prev - 1)}
         />
-        <View style={[styles.content, { paddingHorizontal: spacing.lg }]}>
-          <View style={styles.titleSection}>
-            <Text style={[styles.title, { color: theme.textPrimary }]}>
-              When to Block
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Choose a preset or customize your blocking schedule
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-              Quick Presets
-            </Text>
-            <View style={styles.presetsRow}>
+        <View style={s.titleSection}>
+          <Text style={s.title}>When to Block</Text>
+          <Text style={s.subtitle}>
+            Choose a preset or customize your blocking schedule
+          </Text>
+        </View>
+        <View style={s.sections}>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Quick Presets</Text>
+            <View style={s.presetsRow}>
               {TIME_PRESETS.map((preset, index) => {
                 const active = selectedPreset === index;
-                const iconColor = active ? "#fff" : theme.textSecondary;
                 return (
                   <TouchableOpacity
                     key={index}
                     style={[
-                      styles.presetChip,
+                      s.presetChip,
                       {
-                        backgroundColor: active ? theme.primary : theme.surface,
-                        borderColor: active ? theme.primary : theme.border,
+                        backgroundColor: active
+                          ? theme.accent.primary
+                          : theme.bg.elevated,
+                        borderColor: active
+                          ? theme.accent.primary
+                          : theme.border.default,
                       },
                     ]}
                     onPress={() => handlePresetSelect(index)}
                     activeOpacity={0.7}
                   >
-                    <preset.Icon size={16} color={iconColor} />
+                    <preset.Icon
+                      size={16}
+                      strokeWidth={1.5}
+                      color={active ? "#fff" : theme.text.secondary}
+                    />
                     <Text
                       numberOfLines={1}
                       style={[
-                        styles.presetChipText,
-                        { color: active ? "#fff" : theme.textPrimary },
+                        s.presetChipText,
+                        { color: active ? "#fff" : theme.text.primary },
                       ]}
                     >
                       {preset.label}
@@ -652,124 +625,95 @@ export default function AppSelection() {
               })}
             </View>
           </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-              Custom Time Range
-            </Text>
-            <View style={styles.timeRow}>
-              <View style={styles.timeColumn}>
-                <Text
-                  style={[styles.timeLabel, { color: theme.textSecondary }]}
-                >
-                  Start Time
-                </Text>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Custom Time Range</Text>
+            <View style={s.timeRow}>
+              <View style={s.timeColumn}>
+                <Text style={s.timeLabel}>Start Time</Text>
                 <TouchableOpacity
-                  style={[
-                    styles.timeButton,
-                    {
-                      backgroundColor: theme.surface,
-                      borderColor: theme.border,
-                    },
-                  ]}
+                  style={s.timeButton}
                   onPress={() => {
                     setShowStartPicker(true);
                     setSelectedPreset(null);
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.timeText, { color: theme.textPrimary }]}>
-                    {formatTime(startTime)}
-                  </Text>
+                  <Text style={s.timeText}>{formatTime(startTime)}</Text>
                 </TouchableOpacity>
               </View>
-              <Text
-                style={[styles.timeSeparator, { color: theme.textSecondary }]}
-              >
-                to
-              </Text>
-              <View style={styles.timeColumn}>
-                <Text
-                  style={[styles.timeLabel, { color: theme.textSecondary }]}
-                >
-                  End Time
-                </Text>
+              <Text style={s.timeSeparator}>to</Text>
+              <View style={s.timeColumn}>
+                <Text style={s.timeLabel}>End Time</Text>
                 <TouchableOpacity
-                  style={[
-                    styles.timeButton,
-                    {
-                      backgroundColor: theme.surface,
-                      borderColor: theme.border,
-                    },
-                  ]}
+                  style={s.timeButton}
                   onPress={() => {
                     setShowEndPicker(true);
                     setSelectedPreset(null);
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.timeText, { color: theme.textPrimary }]}>
-                    {formatTime(endTime)}
-                  </Text>
+                  <Text style={s.timeText}>{formatTime(endTime)}</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-              Active Days
-            </Text>
-            <View style={styles.daysGrid}>
-              {DAYS.map((day) => (
-                <TouchableOpacity
-                  key={day.id}
-                  style={[
-                    styles.dayButton,
-                    {
-                      backgroundColor: selectedDays.includes(day.id)
-                        ? theme.primary
-                        : theme.surface,
-                      borderColor: selectedDays.includes(day.id)
-                        ? theme.primary
-                        : theme.border,
-                    },
-                  ]}
-                  onPress={() => toggleDay(day.id)}
-                  activeOpacity={0.7}
-                >
-                  <Text
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Active Days</Text>
+            <View style={s.daysGrid}>
+              {DAYS.map((day) => {
+                const active = selectedDays.includes(day.id);
+                return (
+                  <TouchableOpacity
+                    key={day.id}
                     style={[
-                      styles.dayText,
+                      s.dayButton,
                       {
-                        color: selectedDays.includes(day.id)
-                          ? "#fff"
-                          : theme.textPrimary,
+                        backgroundColor: active
+                          ? theme.accent.primary
+                          : theme.bg.elevated,
+                        borderColor: active
+                          ? theme.accent.primary
+                          : theme.border.default,
                       },
                     ]}
+                    onPress={() => toggleDay(day.id)}
+                    activeOpacity={0.7}
                   >
-                    {day.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        s.dayText,
+                        { color: active ? "#fff" : theme.text.primary },
+                      ]}
+                    >
+                      {day.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         </View>
-
-        <View
-          style={[
-            styles.actions,
-            { backgroundColor: theme.background, borderTopColor: theme.border },
-          ]}
-        >
-          <Button
-            title="Create Group"
+        <View style={s.actions}>
+          <TouchableOpacity
+            style={[
+              s.button,
+              (saving || selectedDays.length === 0) && s.buttonDisabled,
+            ]}
+            activeOpacity={0.8}
             onPress={handleCreate}
             disabled={saving || selectedDays.length === 0}
-          />
+          >
+            <Text
+              style={[
+                s.buttonText,
+                (saving || selectedDays.length === 0) && s.buttonTextDisabled,
+              ]}
+            >
+              Create Group
+            </Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
-
       {showStartPicker && (
         <Modal
           transparent
@@ -778,33 +722,28 @@ export default function AppSelection() {
           onRequestClose={() => setShowStartPicker(false)}
         >
           <Pressable
-            style={styles.modalOverlay}
+            style={s.modalOverlay}
             onPress={() => setShowStartPicker(false)}
           >
             <Animated.View
               style={[
-                styles.pickerModal,
-                {
-                  backgroundColor: theme.surface,
-                  transform: [{ translateY: slideAnim }],
-                },
+                s.pickerModal,
+                { transform: [{ translateY: slideAnim }] },
               ]}
             >
               <Pressable onPress={(e) => e.stopPropagation()}>
-                <View style={styles.pickerHeader}>
+                <View style={s.pickerHeader}>
                   <TouchableOpacity onPress={() => setShowStartPicker(false)}>
-                    <Text style={[styles.pickerDone, { color: theme.primary }]}>
-                      Done
-                    </Text>
+                    <Text style={s.pickerDone}>Done</Text>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.pickerContent}>
+                <View style={s.pickerContent}>
                   <DateTimePicker
                     value={startTime}
                     mode="time"
                     display="spinner"
                     onChange={(_, d) => d && setStartTime(d)}
-                    textColor={theme.textPrimary}
+                    textColor={theme.text.primary}
                   />
                 </View>
               </Pressable>
@@ -812,7 +751,6 @@ export default function AppSelection() {
           </Pressable>
         </Modal>
       )}
-
       {showEndPicker && (
         <Modal
           transparent
@@ -821,33 +759,28 @@ export default function AppSelection() {
           onRequestClose={() => setShowEndPicker(false)}
         >
           <Pressable
-            style={styles.modalOverlay}
+            style={s.modalOverlay}
             onPress={() => setShowEndPicker(false)}
           >
             <Animated.View
               style={[
-                styles.pickerModal,
-                {
-                  backgroundColor: theme.surface,
-                  transform: [{ translateY: slideAnim }],
-                },
+                s.pickerModal,
+                { transform: [{ translateY: slideAnim }] },
               ]}
             >
               <Pressable onPress={(e) => e.stopPropagation()}>
-                <View style={styles.pickerHeader}>
+                <View style={s.pickerHeader}>
                   <TouchableOpacity onPress={() => setShowEndPicker(false)}>
-                    <Text style={[styles.pickerDone, { color: theme.primary }]}>
-                      Done
-                    </Text>
+                    <Text style={s.pickerDone}>Done</Text>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.pickerContent}>
+                <View style={s.pickerContent}>
                   <DateTimePicker
                     value={endTime}
                     mode="time"
                     display="spinner"
                     onChange={(_, d) => d && setEndTime(d)}
-                    textColor={theme.textPrimary}
+                    textColor={theme.text.primary}
                   />
                 </View>
               </Pressable>
@@ -859,147 +792,242 @@ export default function AppSelection() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1 },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  loadingText: {
-    marginTop: spacing.md,
-    fontSize: 16,
-    fontFamily: FONTS.interMedium,
-  },
-  titleSection: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: 4,
-  },
-  title: { fontSize: 28, fontFamily: FONTS.loraMedium, letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, fontFamily: FONTS.interRegular, lineHeight: 20 },
-  pickerContainer: { flex: 1 },
-  picker: { flex: 1 },
-  selectionSummary: {
-    fontSize: 13,
-    fontFamily: FONTS.interRegular,
-    textAlign: "center",
-    marginBottom: spacing.sm,
-  },
-  actions: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    borderTopWidth: 1,
-  },
-  content: { flex: 1, gap: spacing.lg, paddingTop: spacing.xs },
-  section: { gap: spacing.sm },
-  sectionTitle: { fontSize: 16, fontFamily: FONTS.interSemiBold },
-  modeGrid: { flexDirection: "row", gap: spacing.md },
-  modeCard: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: 2,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  modeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 2,
-  },
-  modeTitle: { fontSize: 15, fontFamily: FONTS.interSemiBold },
-  modeSubtitle: {
-    fontSize: 12,
-    fontFamily: FONTS.interRegular,
-    lineHeight: 16,
-  },
-  presetsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  presetButton: {
-    borderRadius: 12,
-    borderWidth: 2,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    alignItems: "center",
-    minWidth: 70,
-  },
-  presetNumber: { fontSize: 20, fontFamily: FONTS.interBold, marginBottom: 2 },
-  presetLabel: { fontSize: 11, fontFamily: FONTS.interMedium },
-  customInput: {
-    borderRadius: 12,
-    borderWidth: 2,
-    padding: spacing.md,
-    fontSize: 18,
-    textAlign: "center",
-    fontFamily: FONTS.interSemiBold,
-  },
-  presetsRow: { flexDirection: "row", justifyContent: "space-between" },
-  presetChip: {
-    width: "31.5%",
-    minHeight: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    minWidth: 0,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
-    borderWidth: 2,
-  },
-  presetChipText: {
-    flexShrink: 1,
-    fontSize: 12,
-    fontFamily: FONTS.interSemiBold,
-  },
-  timeRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md },
-  timeColumn: { flex: 1, gap: 4 },
-  timeLabel: { fontSize: 14, fontFamily: FONTS.interMedium },
-  timeButton: {
-    borderRadius: 12,
-    borderWidth: 2,
-    padding: spacing.md,
-    alignItems: "center",
-  },
-  timeText: { fontSize: 20, fontFamily: FONTS.interBold },
-  timeSeparator: {
-    fontSize: 14,
-    fontFamily: FONTS.interMedium,
-    paddingBottom: spacing.md,
-  },
-  daysGrid: { flexDirection: "row", gap: spacing.sm },
-  dayButton: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 2,
-    paddingVertical: spacing.sm,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayText: { fontSize: 14, fontFamily: FONTS.interSemiBold },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  pickerModal: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: spacing.xl,
-  },
-  pickerHeader: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.1)",
-  },
-  pickerDone: { fontSize: 17, fontFamily: FONTS.interSemiBold },
-  pickerContent: { alignItems: "center", justifyContent: "center" },
-});
+const styles = (theme: ReturnType<typeof useThemedColors>) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg.primary },
+    safeArea: { flex: 1 },
+    centered: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing[6],
+    },
+    loadingText: {
+      marginTop: spacing[4],
+      fontFamily: "System",
+      fontSize: typeScale.subheadline.size,
+      fontWeight: typeScale.subheadline.weight as any,
+      color: theme.text.secondary,
+    },
+    titleSection: {
+      paddingHorizontal: spacing[6],
+      paddingTop: spacing[4],
+      paddingBottom: spacing[4],
+      gap: spacing[2],
+    },
+    title: {
+      fontFamily: "System",
+      fontSize: typeScale.title1.size,
+      fontWeight: typeScale.title1.weight as any,
+      lineHeight: typeScale.title1.lineHeight,
+      letterSpacing: typeScale.title1.tracking,
+      color: theme.text.primary,
+    },
+    subtitle: {
+      fontFamily: "System",
+      fontSize: typeScale.subheadline.size,
+      fontWeight: typeScale.subheadline.weight as any,
+      lineHeight: typeScale.subheadline.lineHeight,
+      color: theme.text.secondary,
+    },
+    pickerContainer: { flex: 1, backgroundColor: theme.bg.primary },
+    picker: { flex: 1, backgroundColor: theme.bg.primary },
+    selectionSummary: {
+      fontFamily: "System",
+      fontSize: typeScale.footnote.size,
+      fontWeight: typeScale.footnote.weight as any,
+      textAlign: "center",
+      marginBottom: spacing[3],
+      color: theme.text.secondary,
+    },
+    actions: {
+      paddingHorizontal: spacing[6],
+      paddingTop: spacing[3],
+      paddingBottom: spacing[6],
+      borderTopWidth: 1,
+      borderTopColor: theme.border.default,
+      backgroundColor: theme.bg.primary,
+    },
+    sections: {
+      flex: 1,
+      paddingHorizontal: spacing[6],
+      gap: spacing[6],
+      paddingTop: spacing[2],
+      paddingBottom: spacing[4],
+    },
+    section: { gap: spacing[3] },
+    sectionTitle: {
+      fontFamily: "System",
+      fontSize: typeScale.callout.size,
+      fontWeight: "600",
+      color: theme.text.primary,
+    },
+    modeGrid: { flexDirection: "row", gap: spacing[4] },
+    modeCard: {
+      flex: 1,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      padding: spacing[4],
+      gap: spacing[2],
+      backgroundColor: theme.bg.elevated,
+    },
+    modeIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: borderRadius.full,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing[1],
+    },
+    modeTitle: {
+      fontFamily: "System",
+      fontSize: typeScale.subheadline.size,
+      fontWeight: "600",
+      color: theme.text.secondary,
+    },
+    modeSubtitle: {
+      fontFamily: "System",
+      fontSize: typeScale.caption1.size,
+      fontWeight: typeScale.caption1.weight as any,
+      lineHeight: typeScale.caption1.lineHeight,
+      color: theme.text.tertiary,
+    },
+    presetsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing[3] },
+    presetButton: {
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      paddingVertical: spacing[3],
+      paddingHorizontal: spacing[4],
+      alignItems: "center",
+      minWidth: 70,
+    },
+    presetNumber: {
+      fontFamily: "Menlo",
+      fontSize: typeScale.title3.size,
+      fontWeight: typeScale.title3.weight as any,
+      lineHeight: typeScale.title3.lineHeight,
+      marginBottom: spacing[1],
+    },
+    presetLabel: {
+      fontFamily: "System",
+      fontSize: typeScale.caption2.size,
+      fontWeight: typeScale.caption2.weight as any,
+    },
+    customInput: {
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      padding: spacing[4],
+      fontFamily: "Menlo",
+      fontSize: typeScale.title3.size,
+      fontWeight: typeScale.title3.weight as any,
+      textAlign: "center",
+      backgroundColor: theme.bg.subtle,
+    },
+    presetsRow: { flexDirection: "row", gap: spacing[2] },
+    presetChip: {
+      flex: 1,
+      minHeight: 40,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: spacing[2],
+      paddingVertical: spacing[3],
+      borderRadius: borderRadius.sm,
+      borderWidth: 1,
+    },
+    presetChipText: {
+      flexShrink: 1,
+      fontFamily: "System",
+      fontSize: typeScale.caption1.size,
+      fontWeight: "600",
+    },
+    timeRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: spacing[4],
+    },
+    timeColumn: { flex: 1, gap: 6 },
+    timeLabel: {
+      fontFamily: "System",
+      fontSize: typeScale.subheadline.size,
+      fontWeight: typeScale.subheadline.weight as any,
+      color: theme.text.secondary,
+    },
+    timeButton: {
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.border.default,
+      padding: spacing[4],
+      alignItems: "center",
+      backgroundColor: theme.bg.elevated,
+    },
+    timeText: {
+      fontFamily: "Menlo",
+      fontSize: typeScale.title3.size,
+      fontWeight: typeScale.title3.weight as any,
+      color: theme.text.primary,
+    },
+    timeSeparator: {
+      fontFamily: "System",
+      fontSize: typeScale.subheadline.size,
+      fontWeight: typeScale.subheadline.weight as any,
+      color: theme.text.tertiary,
+      paddingBottom: spacing[4],
+    },
+    daysGrid: { flexDirection: "row", gap: spacing[2] },
+    dayButton: {
+      flex: 1,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      paddingVertical: spacing[3],
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dayText: {
+      fontFamily: "System",
+      fontSize: typeScale.subheadline.size,
+      fontWeight: "600",
+    },
+    button: {
+      backgroundColor: theme.accent.primary,
+      paddingVertical: spacing[4],
+      borderRadius: borderRadius.md,
+      width: "100%",
+      alignItems: "center",
+    },
+    buttonDisabled: { backgroundColor: theme.bg.subtle },
+    buttonText: {
+      color: "#FFFFFF",
+      fontFamily: "System",
+      fontSize: typeScale.headline.size,
+      fontWeight: typeScale.headline.weight as any,
+    },
+    buttonTextDisabled: { color: theme.text.disabled },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0,0,0,0.6)",
+    },
+    pickerModal: {
+      borderTopLeftRadius: borderRadius.xl,
+      borderTopRightRadius: borderRadius.xl,
+      paddingBottom: spacing[8],
+      backgroundColor: theme.bg.surface,
+    },
+    pickerHeader: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      paddingHorizontal: spacing[6],
+      paddingVertical: spacing[4],
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border.subtle,
+    },
+    pickerDone: {
+      fontFamily: "System",
+      fontSize: typeScale.headline.size,
+      fontWeight: "600",
+      color: theme.accent.primary,
+    },
+    pickerContent: { alignItems: "center", justifyContent: "center" },
+  });

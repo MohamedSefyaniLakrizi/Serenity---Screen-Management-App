@@ -1,4 +1,5 @@
 import { OnboardingService } from "@/services/supabase";
+import { HabitConfig, HabitType } from "@/types/habits";
 import { OnboardingData } from "@/types/onboarding";
 import { appEvents, EVENTS } from "@/utils/events";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -6,67 +7,74 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { create } from "zustand";
 
-interface OnboardingState extends OnboardingData {
-  currentStep: number;
-  totalSteps: number;
+const STORAGE_KEY = "@onboarding";
 
+const defaultData: OnboardingData = {
+  selectedHabits: [],
+  habitPriority: [],
+  habitConfigs: {},
+  selectedApps: [],
+  selectedCategories: [],
+  familyActivitySelection: undefined,
+  screenTimePermissionGranted: false,
+  notificationsEnabled: false,
+  healthKitPermissionGranted: false,
+  locationPermissionGranted: false,
+  pactAccepted: false,
+  analyticsEnabled: true,
+  completedAt: undefined,
+};
+
+interface OnboardingState extends OnboardingData {
   // Actions
-  setCurrentStep: (step: number) => void;
-  nextStep: () => void;
-  previousStep: () => void;
   updateData: (data: Partial<OnboardingData>) => void;
+  selectHabit: (type: HabitType) => void;
+  deselectHabit: (type: HabitType) => void;
+  setHabitPriority: (ordered: HabitType[]) => void;
+  setHabitConfig: (type: HabitType, config: HabitConfig) => void;
   completeOnboarding: () => Promise<{ success: boolean; error?: string }>;
   resetOnboarding: () => void;
   loadFromStorage: () => Promise<void>;
+  saveToStorage: () => void;
 }
 
 export const useOnboardingStore = create<OnboardingState>((set, get) => ({
-  // Initial state
-  currentStep: 0,
-  totalSteps: 10,
-  primaryProblem: undefined,
-  primaryGoal: null,
-  dailyLimitHours: null,
-  dailyLimitMinutes: null,
-  notificationsEnabled: false,
-  screenTimePermissionGranted: false,
-  currentDailyUsageHours: null,
-  currentDailyUsageRange: null,
-  problemApps: [],
-  selectedApps: [],
-  selectedCategories: [],
-  selectionType: "categories",
-  whenUsePhoneMost: null,
-  reasonForChange: null,
-  analyticsEnabled: true,
-  completedAt: null,
-
-  // Actions
-  setCurrentStep: (step: number) => {
-    set({ currentStep: step });
-  },
-
-  nextStep: () => {
-    const { currentStep, totalSteps } = get();
-    if (currentStep < totalSteps - 1) {
-      set({ currentStep: currentStep + 1 });
-    }
-  },
-
-  previousStep: () => {
-    const { currentStep } = get();
-    if (currentStep > 0) {
-      set({ currentStep: currentStep - 1 });
-    }
-  },
+  ...defaultData,
 
   updateData: (data: Partial<OnboardingData>) => {
     set(data);
-    // Auto-save to AsyncStorage
-    const state = get();
-    AsyncStorage.setItem("onboardingData", JSON.stringify(state)).catch(
-      console.error,
-    );
+    get().saveToStorage();
+  },
+
+  selectHabit: (type: HabitType) => {
+    const { selectedHabits, habitPriority } = get();
+    if (selectedHabits.includes(type)) return;
+    const updated = [...selectedHabits, type];
+    set({
+      selectedHabits: updated,
+      habitPriority: [...habitPriority, type],
+    });
+    get().saveToStorage();
+  },
+
+  deselectHabit: (type: HabitType) => {
+    const { selectedHabits, habitPriority } = get();
+    set({
+      selectedHabits: selectedHabits.filter((h) => h !== type),
+      habitPriority: habitPriority.filter((h) => h !== type),
+    });
+    get().saveToStorage();
+  },
+
+  setHabitPriority: (ordered: HabitType[]) => {
+    set({ habitPriority: ordered });
+    get().saveToStorage();
+  },
+
+  setHabitConfig: (type: HabitType, config: HabitConfig) => {
+    const { habitConfigs } = get();
+    set({ habitConfigs: { ...habitConfigs, [type]: config } });
+    get().saveToStorage();
   },
 
   completeOnboarding: async () => {
@@ -82,7 +90,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     try {
       console.log("💾 Saving completion to AsyncStorage...");
       await AsyncStorage.setItem("onboardingCompleted", "true");
-      await AsyncStorage.setItem("onboardingData", JSON.stringify(get()));
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...get() }));
       console.log("✅ AsyncStorage save successful");
 
       // Emit event for immediate UI update
@@ -94,24 +102,21 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
 
     // Prepare data for Supabase
     const onboardingRecord = {
-      primary_goal: state.primaryGoal,
-      daily_limit_hours: state.dailyLimitHours,
-      daily_limit_minutes: state.dailyLimitMinutes,
-      notifications_enabled: state.notificationsEnabled,
-      screen_time_permission_granted: state.screenTimePermissionGranted,
-      current_daily_usage_hours: state.currentDailyUsageHours,
-      problem_apps: state.problemApps,
+      selected_habits: state.selectedHabits,
+      habit_priority: state.habitPriority,
+      habit_configs: state.habitConfigs as Record<string, unknown>,
       selected_apps: state.selectedApps,
       selected_categories: state.selectedCategories,
-      selection_type: state.selectionType,
-      when_use_phone_most: state.whenUsePhoneMost,
-      reason_for_change: state.reasonForChange,
+      family_activity_selection: state.familyActivitySelection,
+      screen_time_permission_granted: state.screenTimePermissionGranted,
+      notifications_enabled: state.notificationsEnabled,
+      health_kit_permission_granted: state.healthKitPermissionGranted,
+      location_permission_granted: state.locationPermissionGranted,
+      pact_accepted: state.pactAccepted,
       analytics_enabled: state.analyticsEnabled,
       completed_at: completedAt,
       device_platform: Platform.OS,
-      device_version: Constants.expoConfig?.version || "1.0.0",
-      name: state.name,
-      email: state.email,
+      device_version: Constants.expoConfig?.version ?? "1.0.0",
     };
 
     // Try to save to Supabase, but don't block on it
@@ -134,32 +139,17 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   },
 
   resetOnboarding: () => {
-    set({
-      currentStep: 0,
-      primaryGoal: null,
-      dailyLimitHours: null,
-      dailyLimitMinutes: null,
-      notificationsEnabled: false,
-      screenTimePermissionGranted: false,
-      currentDailyUsageHours: null,
-      currentDailyUsageRange: null,
-      problemApps: [],
-      whenUsePhoneMost: null,
-      reasonForChange: null,
-      analyticsEnabled: true,
-      completedAt: null,
-    });
+    set({ ...defaultData });
     AsyncStorage.removeItem("onboardingCompleted");
-    AsyncStorage.removeItem("onboardingData");
+    AsyncStorage.removeItem(STORAGE_KEY);
 
-    // Emit event for immediate UI update
     appEvents.emit(EVENTS.ONBOARDING_RESET);
     console.log("📢 Emitted onboarding reset event");
   },
 
   loadFromStorage: async () => {
     try {
-      const savedData = await AsyncStorage.getItem("onboardingData");
+      const savedData = await AsyncStorage.getItem(STORAGE_KEY);
       if (savedData) {
         const parsed = JSON.parse(savedData);
         set(parsed);
@@ -169,11 +159,9 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     }
   },
 
-  saveToStorage: async () => {
-    try {
-      await AsyncStorage.setItem("onboardingData", JSON.stringify(get()));
-    } catch (error) {
-      console.error("Error saving onboarding data to storage:", error);
-    }
+  saveToStorage: () => {
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(get())).catch(
+      console.error,
+    );
   },
 }));

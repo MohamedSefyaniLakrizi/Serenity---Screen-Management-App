@@ -1,6 +1,8 @@
 # Serenity — Habit Builder Rewrite Plan
 
 > **For AI agents**: This document is a step-by-step execution plan. Each step is **one prompt-sized unit of work**. Use the status checkboxes to track progress. After completing a step, change its checkbox from `[ ]` to `[x]`.
+>
+> **Design reference**: See `DESIGN_SYSTEM.md` for the complete visual language — **Structured Minimalism with Dark-First UI**. All UI work must follow that spec.
 
 ---
 
@@ -9,11 +11,11 @@
 > **How to find the next task**: Search this file for the first `- [ ]` checkbox. That is the next step to execute. After completing it, change it to `- [x]` and verify the work compiles with `npx tsc --noEmit`.
 
 | Phase                 | Steps       | Status        |
-| --------------------- | ----------- | ------------- |
+| --------------------- | ----------- | ------------- | --------------------------------------------------------------------------- |
 | 1. Foundation & Types | Steps 1–3   | `IN_PROGRESS` |
-| 2. Design System      | Steps 4–6   | `NOT_STARTED` |
-| 3. Onboarding Rewrite | Steps 7–11  | `NOT_STARTED` |
-| 4. Main App Screens   | Steps 12–14 | `NOT_STARTED` |
+| 2. Design System      | Steps 4–6   | `COMPLETED`   | ← **Overhauled**: Dark-first structured minimalism (see `DESIGN_SYSTEM.md`) |
+| 3. Onboarding Rewrite | Steps 7–11  | `COMPLETED`   |
+| 4. Main App Screens   | Steps 12–14 | `IN_PROGRESS` |
 | 5. Habit Engines      | Steps 15–21 | `NOT_STARTED` |
 | 6. Integration        | Steps 22–25 | `NOT_STARTED` |
 | 7. Cleanup & Polish   | Steps 26–27 | `NOT_STARTED` |
@@ -37,18 +39,21 @@
 ## Conventions & Patterns
 
 > **Agents: READ THIS before writing any code.** These are the coding conventions to follow across all steps.
+> **Design reference**: See `DESIGN_SYSTEM.md` for the complete visual language (Structured Minimalism / Dark-First UI).
 
-| Convention  | Rule                                                                              |
-| ----------- | --------------------------------------------------------------------------------- |
-| Path alias  | `@/*` → `./src/*` — all imports from `src/` must use `@/`                         |
-| Icons       | `lucide-react-native` exclusively — **no emojis in UI**                           |
-| Styling     | `StyleSheet.create()` + design-system constants, `useThemedColors()` for theme    |
-| State       | Zustand stores with manual `loadFromStorage()`/`saveToStorage()` to AsyncStorage  |
-| Animations  | `react-native-reanimated` — `useSequentialFadeIn()` for onboarding screens        |
-| Fonts       | Lora (serif) for Display/H1 headings only, Inter (sans-serif) for everything else |
-| Navigation  | Expo Router (file-based), `useOnboardingNext()` for onboarding flow               |
-| Platform    | iOS only — all Screen Time calls wrapped in `Platform.OS !== 'ios'` checks        |
-| Persistence | Offline-first (AsyncStorage primary), Supabase best-effort                        |
+| Convention  | Rule                                                                                          |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| Path alias  | `@/*` → `./src/*` — all imports from `src/` must use `@/`                                     |
+| Icons       | `lucide-react-native` exclusively — **no emojis in UI**, stroke 1.5px, 20px default           |
+| Styling     | `StyleSheet.create()` + design-system tokens, `useThemedColors()` for theme                   |
+| Design      | **Dark-first** structured minimalism — see `DESIGN_SYSTEM.md` for full spec                   |
+| State       | Zustand stores with manual `loadFromStorage()`/`saveToStorage()` to AsyncStorage              |
+| Animations  | `react-native-reanimated` — functional motion only, no decorative animation                   |
+| Fonts       | **SF Pro** (system font) for all UI text, **SF Mono** for numerical data/timers/stats         |
+| Colors      | Dark backgrounds (#0A0A0A base), single accent (terracotta #E07A5F), status-driven color only |
+| Navigation  | Expo Router (file-based), `useOnboardingNext()` for onboarding flow                           |
+| Platform    | iOS only — all Screen Time calls wrapped in `Platform.OS !== 'ios'` checks                    |
+| Persistence | Offline-first (AsyncStorage primary), Supabase best-effort                                    |
 
 ### Reference files for patterns:
 
@@ -289,7 +294,7 @@ interface HabitMeta {
   label: string;
   description: string;
   icon: string; // lucide icon name
-  color: string; // habitColors key
+  color: string; // habitAccent key
 }
 
 // Sleep escalation state
@@ -442,61 +447,345 @@ interface HabitStoreActions {
 
 ## Phase 2: Design System
 
-### Step 4: Design Tokens Update
+### Step 4: Design System Overhaul — Dark-First Structured Minimalism
 
-- [x] **STEP 4 — Add habit colors and design tokens**
+- [x] **STEP 4 — Rebuild entire design token system for Structured Minimalism / Dark-First UI**
 
-**Goal**: Add per-habit color tokens to the design system so every habit has a consistent, identifiable color throughout the app.
+**Goal**: Replace the existing calm/wellness color palette, typography (Lora + Inter), and spacing with the new Structured Minimalism system: dark-first backgrounds, SF Pro/SF Mono typography, tighter radii, status-driven color, and per-habit accent colors. This is a foundational change — every subsequent step builds on these tokens.
+
+**Design reference**: `DESIGN_SYSTEM.md` (MUST READ before starting this step)
+
+**Files to rewrite**:
+
+- `src/constants/colors.ts` — Complete replacement with dark-first palette
+- `src/constants/typography.ts` — Replace Lora/Inter with SF Pro/SF Mono type scale
+- `src/constants/spacing.ts` — 4px-base spacing scale, tighter border radii
+- `src/constants/themes.ts` — Rebuild light/dark themes using new token structure
 
 **Files to modify**:
 
-- `src/constants/colors.ts`
-- `src/constants/themes.ts`
+- `src/hooks/useThemedStyles.ts` — Update to return new token structure
+- `src/constants/index.ts` — Verify all exports
 
 **Read first**:
 
-- `src/constants/colors.ts` — Understand the existing color structure (primary, secondary, accent, light/dark variants, status colors). Colors follow a muted, breathable palette.
-- `src/constants/themes.ts` — `lightTheme` and `darkTheme` objects.
+- `DESIGN_SYSTEM.md` — **CRITICAL**: The complete design spec. Every token defined here must match.
+- `src/constants/colors.ts` — Understand current structure (to know what to replace)
+- `src/constants/typography.ts` — Current Lora/Inter setup (being replaced)
+- `src/constants/spacing.ts` — Current spacing (being tightened)
+- `src/constants/themes.ts` — Current light/dark themes
+- `src/hooks/useThemedStyles.ts` — How themes are consumed
 
-**Add to `src/constants/colors.ts`**:
+**New `src/constants/colors.ts`**:
 
 ```typescript
-// Habit-specific colors (muted, consistent with existing calm palette)
-export const habitColors = {
-  screentime: { main: "#6B9E8F", light: "#8FB8AC", subtle: "#EDF5F2" }, // Sage (reuse accent)
-  study: { main: "#4A7FA5", light: "#7BA3BF", subtle: "#EBF3F8" }, // Steel Blue
-  fitness: { main: "#E07A5F", light: "#EDA58E", subtle: "#FAF0EC" }, // Coral (reuse primary)
-  sleep: { main: "#5C5A9E", light: "#8583B8", subtle: "#EEEEF5" }, // Deep Indigo
-  prayer: { main: "#C49A3C", light: "#D4B56A", subtle: "#FBF5E8" }, // Warm Gold
-  meditation: { main: "#5A9E8F", light: "#82B8AC", subtle: "#EDF5F2" }, // Calm Teal
-  reading: { main: "#8B7355", light: "#AA9578", subtle: "#F4F0EB" }, // Warm Umber
+/**
+ * Serenity Design System — Color Tokens
+ * Structured Minimalism / Dark-First UI
+ *
+ * Dark is the default. Color is earned through status and achievement.
+ * See DESIGN_SYSTEM.md for full rationale.
+ */
+
+// ─── Brand Accent ──────────────────────────────────────────────────────
+export const accent = {
+  primary: "#E07A5F", // Terracotta — CTAs, key actions
+  hover: "#C4624A", // Pressed/active state
+  subtle: "#E07A5F1A", // 10% opacity backgrounds
+  glow: "#E07A5F40", // 25% opacity shadows/glows
 } as const;
 
-// Habit icon names (from lucide-react-native)
+// ─── Dark Theme Backgrounds (Default) ──────────────────────────────────
+export const darkBg = {
+  primary: "#0A0A0A", // Screen background — true black for OLED
+  elevated: "#141414", // Cards, containers
+  surface: "#1C1C1E", // Modals, sheets, raised surfaces
+  subtle: "#252528", // Inputs, secondary containers
+  hover: "#2C2C30", // Interactive hover/press states
+} as const;
+
+// ─── Light Theme Backgrounds ───────────────────────────────────────────
+export const lightBg = {
+  primary: "#FAFAFA", // Screen background
+  elevated: "#FFFFFF", // Cards, containers
+  surface: "#F5F5F5", // Modals, sheets
+  subtle: "#EFEFEF", // Inputs, secondary containers
+  hover: "#E8E8E8", // Interactive hover/press states
+} as const;
+
+// ─── Text Colors ───────────────────────────────────────────────────────
+export const darkText = {
+  primary: "#F5F5F5", // Headings — 95% white (never pure white)
+  secondary: "#A1A1AA", // Body copy — zinc-400
+  tertiary: "#71717A", // Hints, placeholders — zinc-500
+  disabled: "#3F3F46", // Disabled — zinc-700
+} as const;
+
+export const lightText = {
+  primary: "#09090B", // Headings — zinc-950 (never pure black)
+  secondary: "#52525B", // Body copy — zinc-600
+  tertiary: "#A1A1AA", // Hints — zinc-400
+  disabled: "#D4D4D8", // Disabled — zinc-300
+} as const;
+
+// ─── Status Signal Colors ──────────────────────────────────────────────
+// These carry meaning. They pop on dark backgrounds.
+export const status = {
+  success: "#22C55E",
+  successSubtle: "#22C55E1A",
+  warning: "#F59E0B",
+  warningSubtle: "#F59E0B1A",
+  error: "#EF4444",
+  errorSubtle: "#EF44441A",
+  info: "#3B82F6",
+  infoSubtle: "#3B82F61A",
+} as const;
+
+// ─── Per-Habit Accent Colors ───────────────────────────────────────────
+export const habitAccent = {
+  screentime: "#6366F1", // Indigo
+  study: "#3B82F6", // Blue
+  fitness: "#F97316", // Orange
+  sleep: "#8B5CF6", // Violet
+  prayer: "#D4A017", // Gold
+  meditation: "#06B6D4", // Cyan
+  reading: "#A78BFA", // Light purple
+} as const;
+
+// ─── Habit Icon Map ────────────────────────────────────────────────────
 export const habitIcons = {
   screentime: "Smartphone",
   study: "BookOpen",
   fitness: "Dumbbell",
   sleep: "Moon",
-  prayer: "HandHeart", // or 'Heart' as fallback
+  prayer: "Hands",
   meditation: "Brain",
   reading: "BookText",
 } as const;
+
+// ─── Borders ───────────────────────────────────────────────────────────
+export const darkBorder = {
+  subtle: "#1F1F23",
+  default: "#27272A", // zinc-800
+  strong: "#3F3F46", // zinc-700
+} as const;
+
+export const lightBorder = {
+  subtle: "#F4F4F5", // zinc-100
+  default: "#E4E4E7", // zinc-200
+  strong: "#D4D4D8", // zinc-300
+} as const;
+
+// ─── Overlays ──────────────────────────────────────────────────────────
+export const overlay = {
+  light: "rgba(10, 10, 10, 0.30)",
+  medium: "rgba(10, 10, 10, 0.55)",
+  heavy: "rgba(10, 10, 10, 0.75)",
+} as const;
 ```
 
-**Add to both themes in `src/constants/themes.ts`**:
+**New `src/constants/typography.ts`**:
 
 ```typescript
-habitColors: habitColors,  // Same for both themes (the main colors don't change)
+/**
+ * Serenity Design System — Typography
+ * SF Pro for all UI text. SF Mono for numerical data.
+ * See DESIGN_SYSTEM.md for full rationale.
+ */
+
+export const FONTS = {
+  display: "System", // SF Pro Display (system default at large sizes)
+  text: "System", // SF Pro Text (system default at body sizes)
+  mono: "Menlo", // SF Mono fallback for React Native
+} as const;
+
+export const typeScale = {
+  display: { size: 34, weight: "700" as const, lineHeight: 41, tracking: 0.37 },
+  title1: { size: 28, weight: "700" as const, lineHeight: 34, tracking: 0.36 },
+  title2: { size: 22, weight: "700" as const, lineHeight: 28, tracking: 0.35 },
+  title3: { size: 20, weight: "600" as const, lineHeight: 25, tracking: 0.38 },
+  headline: {
+    size: 17,
+    weight: "600" as const,
+    lineHeight: 22,
+    tracking: -0.41,
+  },
+  body: { size: 17, weight: "400" as const, lineHeight: 22, tracking: -0.41 },
+  callout: {
+    size: 16,
+    weight: "400" as const,
+    lineHeight: 21,
+    tracking: -0.32,
+  },
+  subheadline: {
+    size: 15,
+    weight: "400" as const,
+    lineHeight: 20,
+    tracking: -0.24,
+  },
+  footnote: {
+    size: 13,
+    weight: "400" as const,
+    lineHeight: 18,
+    tracking: -0.08,
+  },
+  caption1: { size: 12, weight: "400" as const, lineHeight: 16, tracking: 0 },
+  caption2: {
+    size: 11,
+    weight: "400" as const,
+    lineHeight: 13,
+    tracking: 0.07,
+  },
+  // Numerical display (SF Mono)
+  statLarge: {
+    size: 48,
+    weight: "700" as const,
+    lineHeight: 52,
+    tracking: 0,
+    font: FONTS.mono,
+  },
+  statMedium: {
+    size: 34,
+    weight: "600" as const,
+    lineHeight: 38,
+    tracking: 0,
+    font: FONTS.mono,
+  },
+  statSmall: {
+    size: 22,
+    weight: "600" as const,
+    lineHeight: 26,
+    tracking: 0,
+    font: FONTS.mono,
+  },
+  timer: {
+    size: 64,
+    weight: "300" as const,
+    lineHeight: 68,
+    tracking: -2,
+    font: FONTS.mono,
+  },
+} as const;
 ```
 
-**Verify**: `npx tsc --noEmit`
+**New `src/constants/spacing.ts`**:
+
+```typescript
+/**
+ * Serenity Design System — Spacing & Layout
+ * 4px base grid. Tighter radii for structured minimalism.
+ */
+
+export const spacing = {
+  0: 0,
+  px: 1,
+  0.5: 2,
+  1: 4,
+  1.5: 6,
+  2: 8,
+  2.5: 10,
+  3: 12,
+  4: 16,
+  5: 20,
+  6: 24,
+  7: 28,
+  8: 32,
+  10: 40,
+  12: 48,
+  16: 64,
+  20: 80,
+} as const;
+
+export const borderRadius = {
+  none: 0,
+  sm: 6, // Chips, tags, badges
+  md: 10, // Buttons, inputs
+  lg: 14, // Cards
+  xl: 20, // Modals, sheets
+  full: 9999, // Pills, avatars
+} as const;
+
+export const shadows = {
+  small: {
+    shadowColor: "rgba(10, 10, 10, 0.20)",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  medium: {
+    shadowColor: "rgba(10, 10, 10, 0.25)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  large: {
+    shadowColor: "rgba(10, 10, 10, 0.30)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  glow: {
+    shadowColor: "#E07A5F40",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 0,
+  },
+} as const;
+```
+
+**Rebuild `src/constants/themes.ts`**:
+
+```typescript
+import {
+  darkBg,
+  lightBg,
+  darkText,
+  lightText,
+  darkBorder,
+  lightBorder,
+  accent,
+  status,
+  habitAccent,
+} from "./colors";
+
+export const darkTheme = {
+  bg: darkBg,
+  text: darkText,
+  accent,
+  status,
+  habitAccent,
+  border: darkBorder,
+  statusBar: "light-content" as const,
+} as const;
+
+export const lightTheme = {
+  bg: lightBg,
+  text: lightText,
+  accent,
+  status,
+  habitAccent,
+  border: lightBorder,
+  statusBar: "dark-content" as const,
+} as const;
+
+export type Theme = typeof darkTheme;
+```
+
+**Update `src/hooks/useThemedStyles.ts`**: Update `useThemedColors()` to return the new theme structure (`.bg.primary`, `.text.primary`, etc. instead of `.background`, `.textPrimary`).
+
+**Migration note**: This step changes the entire token API surface. Steps 5+ will use the new tokens. Existing screens may break — they will be rewritten in later steps.
+
+**Verify**: `npx tsc --noEmit` — Theme types should resolve. Existing screen breakage is expected and acceptable.
 
 ---
 
 ### Step 5: Core Reusable UI Components
 
-- [ ] **STEP 5 — Build TimerView, OathConfirmation, ProgressRing, StreakBadge, HabitCard**
+- [x] **STEP 5 — Build TimerView, OathConfirmation, ProgressRing, StreakBadge, HabitCard**
 
 **Goal**: Create 5 reusable UI components that will be used across all habit screens and the main dashboard.
 
@@ -517,23 +806,24 @@ habitColors: habitColors,  // Same for both themes (the main colors don't change
 - `app/mindful-pause.tsx` — **CRITICAL**: Contains the existing hold-to-unlock logic (5s hold, haptic feedback, SVG ring animation, countdown phrases). Extract and generalize into `OathConfirmation` and `ProgressRing`.
 - `src/components/ui/Button.tsx` — Component pattern: typed props interface, themed colors via `useThemedColors()`, `StyleSheet.create()`
 - `src/components/ui/Card.tsx` — Variant pattern
-- `src/constants/colors.ts` — `habitColors` map (from Step 4)
+- `src/constants/colors.ts` — `habitAccent` map (from Step 4)
 - `src/types/habits.ts` — `Habit`, `HabitType`, `DailyHabitCompletion` types (from Step 1)
 
 **Component specifications**:
 
 **ProgressRing** (`ProgressRing.tsx`):
 
-- Props: `progress: number` (0–1), `size: number`, `strokeWidth: number`, `color: string`, `backgroundColor?: string`, `children?: ReactNode`
+- Props: `progress: number` (0–1), `size: number`, `strokeWidth?: number` (default 4 — thin/precise per design system), `color: string`, `trackColor?: string` (default `border.dark.subtle`), `children?: ReactNode`
 - SVG circle with `strokeDashoffset` animation via Reanimated
 - Extracted from `mindful-pause.tsx` ring logic
+- Track is barely visible (`border.subtle`), active stroke in accent or habit color
 
 **TimerView** (`TimerView.tsx`):
 
 - Props: `durationSeconds: number`, `onComplete: () => void`, `variant: 'focused' | 'calm'`, `habitColor: string`, `isRunning: boolean`, `onToggle: () => void`, `onReset: () => void`
 - Large ProgressRing with time display in center (MM:SS format)
 - Start/Pause button + Reset button below
-- `focused` variant: bold colors, sharp ring. `calm` variant: soft colors, breathing pulse
+- `focused` variant: habit accent color ring, sharp stroke. `calm` variant: softer ring, subtle breathing pulse on the progress track
 - Uses `useRef` for interval, `useState` for elapsed seconds
 
 **OathConfirmation** (`OathConfirmation.tsx`):
@@ -548,15 +838,17 @@ habitColors: habitColors,  // Same for both themes (the main colors don't change
 **StreakBadge** (`StreakBadge.tsx`):
 
 - Props: `count: number`, `label?: string`, `color?: string`, `size?: 'sm' | 'md' | 'lg'`
-- Flame icon (lucide `Flame`) + count in bold + "days" label
-- Colored background circle behind flame icon
+- Flame icon (lucide `Flame`) + count in **SF Mono** (`statSmall` or `statMedium`) + "days" label
+- Subtle background pill shape (`borderRadius.full`), no colored circle — structured, not decorative
 
 **HabitCard** (`HabitCard.tsx`):
 
 - Props: `habit: Habit`, `onPress: (habit: Habit) => void`, `showStreak?: boolean`
-- Card component containing: habit icon (from `habitIcons` map), habit name, goal summary text, completion status indicator (checkmark/pending/locked), optional streak badge
-- Left-accent border in habit color
-- Uses `Card` component from existing UI library as base
+- Dark card (`darkBg.elevated`, `border.dark.subtle` border, `borderRadius.lg`)
+- 3px left-accent border in habit's accent color (`habitAccent[type]`)
+- Content: habit icon (lucide, tinted in habit accent color, 20px, stroke 1.5) + habit name (`headline`) + goal summary (`callout`, `textSecondary`) + completion indicator + optional streak badge
+- Completed state: green left-accent + checkmark icon + 0.7 opacity
+- No shadows — borders only for elevation
 
 **Verify**: `npx tsc --noEmit`
 
@@ -564,7 +856,7 @@ habitColors: habitColors,  // Same for both themes (the main colors don't change
 
 ### Step 6: Habit-Specific Compound Components
 
-- [ ] **STEP 6 — Build DailyChecklist, HabitConfigCard, PrayerTimesList**
+- [x] **STEP 6 — Build DailyChecklist, HabitConfigCard, PrayerTimesList**
 
 **Goal**: Create 3 compound components that compose the primitives from Step 5 into feature-level views.
 
@@ -619,7 +911,7 @@ habitColors: habitColors,  // Same for both themes (the main colors don't change
 
 ### Step 7: Onboarding Infrastructure
 
-- [ ] **STEP 7 — Rewrite onboarding types, store, and flow config**
+- [x] **STEP 7 — Rewrite onboarding types, store, and flow config**
 
 **Goal**: Replace the current onboarding data model and flow with the new habit-centric version. This is infrastructure only — screens come in Steps 8–11.
 
@@ -683,7 +975,7 @@ export interface OnboardingData {
 
 ### Step 8: Onboarding Intro Screens
 
-- [ ] **STEP 8 — Rewrite welcome screen, create how-it-works and the-pact, delete unused screens**
+- [x] **STEP 8 — Rewrite welcome screen, create how-it-works and the-pact, delete unused screens**
 
 **Goal**: Create the first 3 onboarding screens and delete all screens that are no longer part of the flow.
 
@@ -719,30 +1011,32 @@ export interface OnboardingData {
 
 **Screen: `index.tsx` (Welcome)**:
 
-- "Build Habits That Stick" title (Lora Display2)
-- Subtitle: "Serenity blocks your apps until you complete your daily habits. One habit at a time. Two months to build it. Then stack the next."
-- Lottie logo animation (reuse existing from assets)
-- "Get Started" CTA button
-- Sequential fade-in for 4 elements (logo, title, subtitle, button)
+- Dark background (`bg.primary`), full screen
+- S-shield logo mark centered, Lottie fade-in animation
+- "Build Habits That Stick" title (SF Pro Display `display`, bold, `text.primary`)
+- Subtitle: "Serenity blocks your apps until you complete your daily habits. One habit at a time. Two months to build it. Then stack the next." (`callout`, `text.secondary`)
+- "Get Started" CTA button (terracotta accent, full width, `borderRadius.md`)
+- Sequential fade-in for 4 elements (logo, title, subtitle, button) — 200ms stagger
 
 **Screen: `how-it-works.tsx`**:
 
-- 3 cards explaining the system:
+- Dark background, 3 cards explaining the system:
   1. "Choose Your Habits" — Pick from 7 life-changing habits
   2. "Build One at a Time" — Focus on your top priority for 60 days
   3. "Stack & Grow" — Once built, add the next habit on top
-- Each card: Lucide icon + title + description
-- "Continue" CTA
-- Sequential fade-in for cards
+- Each card: `bg.elevated` background, `border.subtle` border, `borderRadius.lg`. Lucide icon (20px, `text.secondary`) + title (`headline`) + description (`callout`, `text.secondary`)
+- "Continue" CTA (terracotta accent)
+- Sequential staggered fade-in for cards (200ms apart)
 
 **Screen: `the-pact.tsx`**:
 
-- Serious, clear messaging:
-  - "This is a Commitment" (Lora heading)
-  - "Your apps will be blocked every day until you complete your habits. There are no shortcuts."
-  - "This program works because it's strict. You're making a pact with yourself."
-- Shield/Lock icon from lucide
-- "I Understand" CTA button
+- Dark background, serious tone:
+  - "This is a Commitment" (SF Pro Display `title1`, bold, `text.primary`)
+  - "Your apps will be blocked every day until you complete your habits. There are no shortcuts." (`body`, `text.secondary`)
+  - "This program works because it's strict. You're making a pact with yourself." (`body`, `text.secondary`)
+- Shield icon from lucide (32px, terracotta accent color) centered above title
+- "I Understand" CTA button (terracotta accent)
+- This screen sets the emotional tone — no decorative elements, just gravity
 
 **Verify**: `npx tsc --noEmit` — All remaining onboarding screens should compile. The deleted screens won't cause import errors because they're only referenced from the flow config (updated in Step 7).
 
@@ -750,7 +1044,7 @@ export interface OnboardingData {
 
 ### Step 9: Habit Selection & Priority Screens
 
-- [ ] **STEP 9 — Create habit-selection and habit-priority onboarding screens**
+- [x] **STEP 9 — Create habit-selection and habit-priority onboarding screens**
 
 **Goal**: Let users select which habits they want and order them by priority.
 
@@ -762,28 +1056,28 @@ export interface OnboardingData {
 **Read first**:
 
 - `app/onboarding/daily-goal.tsx` — Screen structure pattern
-- `src/constants/colors.ts` — `habitColors` map, `habitIcons` map (from Step 4)
+- `src/constants/colors.ts` — `habitAccent` map, `habitIcons` map (from Step 4)
 - `src/store/onboardingStore.ts` — `selectHabit()`, `deselectHabit()`, `updateData()` (from Step 7)
 - `src/types/habits.ts` — `HabitType`, `HabitMeta` (from Step 1)
 
 **Screen: `habit-selection.tsx`**:
 
-- Title: "Choose Your Habits" (Lora H1)
-- Subtitle: "Select the habits you want to build. You'll focus on one at a time."
-- Grid (2 columns) of 7 habit cards, each showing:
-  - Lucide icon for the habit (from `habitIcons`)
-  - Habit name label
-  - Short description (one line)
-  - Toggle: tappable, shows checkmark + colored border when selected
-  - Colored left accent matching `habitColors[type].main`
+- Title: "Choose Your Habits" (SF Pro `title1`, bold, `text.primary`)
+- Subtitle: "Select the habits you want to build. You'll focus on one at a time." (`callout`, `text.secondary`)
+- Grid (2 columns) of 7 habit cards, each on `bg.elevated` with `border.subtle` border:
+  - Lucide icon (20px, tinted in `habitAccent[type]`)
+  - Habit name label (`headline`)
+  - Short description (`caption1`, `text.tertiary`)
+  - Toggle: tappable, selected state = `habitAccent[type]` border + checkmark icon
+  - Unselected state = `border.default`
 - Validation: at least 1 habit must be selected
 - "Continue" CTA (disabled if none selected)
 - Free users: if >1 selected, show subtle "Pro" badge on extra habits. Allow selection but note "Pro required for multiple habits" (actual enforcement at paywall)
 
 **Screen: `habit-priority.tsx`**:
 
-- Title: "Set Your Priority" (Lora H1)
-- Subtitle: "Drag to reorder. Your #1 habit is what you'll build first for 60 days."
+- Title: "Set Your Priority" (SF Pro `title1`, bold)
+- Subtitle: "Drag to reorder. Your #1 habit is what you'll build first for 60 days." (`callout`, `text.secondary`)
 - List of selected habits (from onboarding store) as draggable cards
   - Each card: number badge + habit icon + habit name
   - Visual: #1 is highlighted/larger
@@ -797,7 +1091,7 @@ export interface OnboardingData {
 
 ### Step 10: Per-Habit Configuration Screens
 
-- [ ] **STEP 10 — Create 7 habit configuration onboarding screens**
+- [x] **STEP 10 — Create 7 habit configuration onboarding screens**
 
 **Goal**: Each selected habit needs a config screen to collect its specific settings.
 
@@ -818,13 +1112,13 @@ export interface OnboardingData {
 - `src/store/onboardingStore.ts` — `setHabitConfig(type, config)` (from Step 7)
 - `src/types/habits.ts` — Each config type interface (from Step 1)
 
-**All screens follow this layout**:
+**All screens follow this layout** (dark background, structured minimalism):
 
 ```
-SafeAreaView → OnboardingHeader → Title (Lora H1) → Subtitle → Config Controls → CTA Button
+SafeAreaView (bg.primary) → OnboardingHeader → Title (SF Pro title1) → Subtitle (callout, text.secondary) → Config Controls → CTA Button (terracotta accent)
 ```
 
-With `useSequentialFadeIn` for 4–5 animated elements.
+With sequential fade-in for 4–5 animated elements (200ms stagger).
 
 **Screen: `config-screentime.tsx`**:
 
@@ -890,7 +1184,7 @@ With `useSequentialFadeIn` for 4–5 animated elements.
 
 ### Step 11: Final Onboarding Screens
 
-- [ ] **STEP 11 — Rework app-selection, add healthkit-permission, create pact-screen, rework building-plan**
+- [x] **STEP 11 — Rework app-selection, add healthkit-permission, create pact-screen, rework building-plan**
 
 **Goal**: Complete the onboarding flow with app selection, permissions, and the final pact commitment.
 
@@ -936,7 +1230,7 @@ With `useSequentialFadeIn` for 4–5 animated elements.
 
 **New: `pact-screen.tsx`**:
 
-- Title: "Your Pact" (Lora Display2)
+- Title: "Your Pact" (SF Pro Display `display`, bold, `text.primary`)
 - Summary card listing: selected habits + their goals (from onboarding store)
 - OathConfirmation component with oath text: "I commit to building these habits. I understand my apps will be blocked until I complete them each day. I will uphold this pact."
 - Hold duration: 5 seconds
@@ -945,11 +1239,11 @@ With `useSequentialFadeIn` for 4–5 animated elements.
 
 **Rework: `building-plan.tsx`**:
 
-- Show habit stacking timeline:
-  - List of selected habits in priority order
-  - First habit highlighted: "Starting now — 60 days to build"
-  - Remaining habits: "Coming up next" with estimated dates
-- Animated progress bars per habit (auto-play)
+- Dark background, habit stacking timeline:
+  - List of selected habits in priority order on `bg.elevated` cards
+  - First habit highlighted: terracotta accent border + "Starting now — 60 days to build" (`headline`)
+  - Remaining habits: `text.tertiary` + "Coming up next" with estimated dates in SF Mono
+- Subtle animated progress bars per habit (monochrome fill on `border.subtle` track)
 - After 5s: auto-redirect to paywall (preserve existing pattern)
 
 **Verify**: `npx tsc --noEmit` — Full onboarding flow should be navigable from welcome to building-plan.
@@ -960,7 +1254,7 @@ With `useSequentialFadeIn` for 4–5 animated elements.
 
 ### Step 12: Home Tab — Daily Habit Dashboard
 
-- [ ] **STEP 12 — Rewrite the home tab as a habit dashboard**
+- [x] **STEP 12 — Rewrite the home tab as a habit dashboard**
 
 **Goal**: Replace the current app groups management screen with a daily habit checklist showing today's habit status, completion actions, and global unlock state.
 
@@ -980,16 +1274,16 @@ With `useSequentialFadeIn` for 4–5 animated elements.
 **New screen structure**:
 
 ```
-SafeAreaView
+SafeAreaView (bg.primary — dark)
 ├── Header Row
-│   ├── "Today" title (Lora H1) + formatted date
-│   └── StreakBadge (global streak)
+│   ├── "Today" title (SF Pro title1, text.primary) + formatted date (subheadline, text.secondary)
+│   └── StreakBadge (SF Mono stat number, gold flame icon)
 ├── Status Banner (conditional)
-│   ├── All done: "All habits complete! Apps unlocked" (success background)
-│   └── Pending: "Complete X more habits to unlock" (warning background)
-├── ScrollView
-│   ├── DailyChecklist (active habits)
-│   └── Stacked habits section (collapsed, showing habit names as completed)
+│   ├── All done: "All habits complete! Apps unlocked" (status.successSubtle bg, status.success text)
+│   └── Pending: "Complete X more habits to unlock" (status.warningSubtle bg, status.warning text)
+├── ScrollView (gap: 12px between cards)
+│   ├── DailyChecklist (HabitCards on bg.elevated, 3px left accent per habit)
+│   └── Stacked habits section (collapsed, reduced opacity)
 └── [Upgrade button if !isPro and >1 habit selected]
 ```
 
@@ -1009,7 +1303,7 @@ SafeAreaView
 
 ### Step 13: Progress Tab — Streaks & Analytics
 
-- [ ] **STEP 13 — Rewrite progress tab with per-habit streaks and calendar view**
+- [x] **STEP 13 — Rewrite progress tab with per-habit streaks and calendar view**
 
 **Goal**: Replace the current progress screen with global/per-habit streaks, a calendar heatmap, and habit stacking timeline.
 
@@ -1022,21 +1316,22 @@ SafeAreaView
 - `app/(tabs)/progress.tsx` — Current structure (period toggle, chart, streak cards). Preserve the `ActivityReportView` for screen time data.
 - `src/store/habitStore.ts` — `habits` array with per-habit `streak`, `globalStreak`
 - `src/components/ui/StreakBadge.tsx` (from Step 5)
-- `src/constants/colors.ts` — `habitColors`
+- `src/constants/colors.ts` — `habitAccent`
 
 **New screen structure**:
 
 ```
-SafeAreaView
-├── Header: "Progress" + [Upgrade button]
+SafeAreaView (bg.primary — dark)
+├── Header: "Progress" (title1) + [Upgrade button]
 ├── ScrollView
-│   ├── Global Streak Card (large flame icon, current + longest streak)
-│   ├── Per-Habit Streaks (horizontal ScrollView of StreakBadge cards)
+│   ├── Global Streak Card (bg.elevated, SF Mono statLarge number, Flame icon in gold)
+│   ├── Per-Habit Streaks (horizontal ScrollView of cards, each with habitAccent color)
 │   ├── Calendar Heatmap (7-column grid, 5 weeks visible)
-│   │   └── Colors: green (all done), yellow (partial), red (missed), gray (future)
+│   │   └── Cell colors: status.success (all done), status.warning (partial),
+│   │       status.error (missed), bg.subtle (future). Tight 4px radius squares.
 │   ├── Habit Stacking Timeline
-│   │   └── Visual: vertical timeline with habit milestones + 60-day markers
-│   ├── Statistics Card
+│   │   └── Vertical timeline, monochrome with habit accent dots at milestones
+│   ├── Statistics Card (SF Mono for all numbers)
 │   │   └── Total habits built, completion rate, best streak
 │   └── ActivityReportView (screen time data, keep from current)
 ```
@@ -1049,7 +1344,7 @@ SafeAreaView
 
 ### Step 14: Settings Tab Update
 
-- [ ] **STEP 14 — Add habit management to settings**
+- [x] **STEP 14 — Add habit management to settings**
 
 **Goal**: Allow users to edit habit configs, manage blocked apps, and add/remove habits from settings.
 
@@ -1066,21 +1361,24 @@ SafeAreaView
 **New screen structure**:
 
 ```
-SafeAreaView
-├── Header: "Settings"
-├── ScrollView
+SafeAreaView (bg.primary — dark)
+├── Header: "Settings" (title1)
+├── ScrollView (grouped sections, title3 section headers, bg.elevated cards)
 │   ├── Active Habits Section
 │   │   └── List of active habits with "Edit" button each → modal/inline config editor
 │   ├── Pending Habits Section (if any)
 │   │   └── List showing queue order + "Move Up/Down" actions
-│   ├── Add Habit Button → modal with habit selection
+│   ├── Add Habit Button (ghost variant, border.default)
 │   ├── Blocked Apps Section
-│   │   └── "Manage Blocked Apps" → DeviceActivitySelectionView screen
-│   │   └── Current count: "X apps · Y categories blocked"
-│   ├── Appearance Card (keep existing: Light/Dark/System)
-│   ├── Notifications Card (keep existing)
-│   ├── Subscription Card (keep existing RevenueCat integration)
-│   └── Dev Tools (keep existing: reset onboarding, etc.)
+│   │   ├── "Manage Blocked Apps" → DeviceActivitySelectionView
+│   │   └── Current count: SF Mono number + "apps · Y categories blocked" (callout)
+│   ├── Appearance Card (Dark / Light / System — dark is default)
+│   ├── Notifications Card
+│   ├── Subscription Card (RevenueCat)
+│   └── Dev Tools
+│
+│   List items: 48px min height, text.primary label, chevron in text.tertiary
+│   Destructive actions: status.error text, status.errorSubtle background
 ```
 
 **Verify**: `npx tsc --noEmit`
@@ -1093,7 +1391,7 @@ SafeAreaView
 
 ### Step 15: Screentime Limit Engine
 
-- [ ] **STEP 15 — Implement reversed screentime blocking**
+- [x] **STEP 15 — Implement reversed screentime blocking**
 
 **Goal**: Set up DeviceActivity threshold monitoring so apps are open until the user exceeds their daily limit, then blocked for the rest of the day.
 
@@ -1141,7 +1439,7 @@ export const ScreentimeHabitService = {
 
 ### Step 16: Study/Work Timer Engine
 
-- [ ] **STEP 16 — Build study timer service and screen**
+- [x] **STEP 16 — Build study timer service and screen**
 
 **Goal**: Create a focus timer where users start a session, complete their study goal, and apps unlock.
 
@@ -1183,12 +1481,12 @@ interface TimerState {
 
 **Screen: `app/study-timer.tsx`**:
 
-- Full-screen layout, habit color (study blue) accent
-- Large TimerView (countdown from goal to 0)
-- Study icon + "Focus Session" title + goal text ("45 minutes of study")
-- Start/Pause toggle button + Reset button
-- On completion: celebration animation → `habitStore.completeHabit()` → navigate back to home
-- Bottom: small text link "I already completed my work" → OathConfirmation modal
+- Full-screen dark layout (`bg.primary`), habit accent color (study blue `#3B82F6`) for ring
+- Large TimerView with SF Mono `timer` display (64px, light weight, countdown)
+- BookOpen icon (20px, study blue) + "Focus Session" title (`title2`) + goal text (`callout`, `text.secondary`)
+- Start/Pause toggle button (terracotta accent) + Reset button (ghost)
+- On completion: checkmark draw animation (400ms) → `habitStore.completeHabit()` → navigate back
+- Bottom: small text link (`footnote`, `text.tertiary`) "I already completed my work" → OathConfirmation modal
   - Oath text: "I swear that I have completed my study/work for today. I uphold my commitment."
 
 **Verify**: `npx tsc --noEmit`. Manual test: start timer, let it run, verify completion callback.
@@ -1217,12 +1515,12 @@ interface TimerState {
 
 **Screen: `app/meditation-timer.tsx`**:
 
-- Full-screen, calm teal color accent, dark background
-- Large TimerView with 'calm' variant (soft pulsing ring)
-- Breathing guide: animated text cycling "Breathe in..." → "Hold..." → "Breathe out..." with 4-7-8 timing
-- Minimal UI — just the timer, breathing guide, and a small "Done" button that appears after completion
+- Full-screen, `bg.primary` dark background, meditation cyan (`#06B6D4`) accent for ring
+- Large TimerView with 'calm' variant (SF Mono `timer`, thin soft ring with subtle pulse)
+- Breathing guide: animated text (`body`, `text.secondary`) cycling "Breathe in..." → "Hold..." → "Breathe out..." with 4-7-8 timing
+- Extreme minimalism — just the timer ring, breathing text, and a small "Done" `ghost` button on completion
 - Haptic pulse on breathing transitions (gentle)
-- **Hidden** oath fallback: Very small text at very bottom "Already meditated?" → OathConfirmation
+- **Hidden** oath fallback: `caption2` text at very bottom, `text.tertiary` — "Already meditated?" → OathConfirmation
   - Oath text: "I confirm I have completed my meditation practice today."
 
 **Verify**: `npx tsc --noEmit`
@@ -1272,11 +1570,12 @@ export const ReadingHabitService = {
 
 **Screen: `app/reading-timer.tsx`**:
 
-- Similar to study timer but with reading/umber color accent
-- BookText icon + "Reading Session" title
-- If reading apps configured: show "or read in your apps for X minutes" message with auto-check indicator
+- Full-screen dark layout, reading accent color (`#A78BFA` light purple) for ring
+- BookText icon (20px, reading purple) + "Reading Session" title (`title2`)
+- SF Mono timer display, progress ring in reading accent
+- If reading apps configured: show info text (`footnote`, `text.tertiary`) "or read in your apps for X minutes"
 - Timer + Start/Pause/Reset
-- Oath fallback as small text link
+- Oath fallback as `caption2` text link
 
 **Verify**: `npx tsc --noEmit`
 
@@ -1398,12 +1697,13 @@ const prayerTimes = new PrayerTimes(coordinates, new Date(), params);
 
 **Screen: `app/prayer-status.tsx`**:
 
-- Title: "Today's Prayers" + date
-- PrayerTimesList component showing each prayer with time and status
-- Current/next prayer highlighted
+- Dark background (`bg.primary`), prayer gold (`#D4A017`) accent
+- Title: "Today's Prayers" (`title1`) + date (`subheadline`, `text.secondary`)
+- PrayerTimesList on `bg.elevated` cards with gold left-accent
+- Current/next prayer highlighted with gold border
 - OathConfirmation per uncompleted prayer
-- Overall progress: "3/5 prayers completed"
-- On all completed: success banner + auto-complete habit
+- Overall progress: SF Mono number "3/5" + "prayers completed" (`callout`)
+- On all completed: status.success banner + auto-complete habit
 
 **Verify**: `npx tsc --noEmit`. Test prayer time calculation with known coordinates.
 
@@ -1470,12 +1770,13 @@ export const FitnessHabitService = {
 
 **Screen: `app/fitness-status.tsx`**:
 
-- Title: "Fitness Goal"
-- Large ProgressRing showing current vs goal
-- Stats: current value + goal + unit (e.g., "6,432 / 8,000 steps")
+- Dark background (`bg.primary`), fitness orange (`#F97316`) accent
+- Title: "Fitness Goal" (`title1`)
+- Large ProgressRing (fitness orange stroke, `border.subtle` track) with SF Mono `statLarge` number centered
+- Stats below ring: current / goal + unit in `callout` (e.g., "6,432 / 8,000 steps") — numbers in SF Mono
 - Auto-refresh on focus via `useFocusEffect`
-- If goal met: celebration + auto-complete habit
-- Source indicator: "Data from Apple Health" with heart icon
+- If goal met: checkmark draw animation + green ring + auto-complete
+- Source indicator: `caption1`, `text.tertiary` — "Data from Apple Health" with Heart icon
 
 **app.json changes**:
 
@@ -1780,7 +2081,7 @@ checkAndActivateNextHabit(): {
 5. Type system — Habits, configs, streaks
 6. Services — Habit engines, blocking service, shield service
 7. Native integration — HealthKit addition
-8. Design system — Habit colors
+8. Design system — Structured Minimalism / Dark-First UI (reference `DESIGN_SYSTEM.md`)
 9. State management — habitStore
 10. Conventions — Any new rules
 
@@ -1872,38 +2173,40 @@ checkAndActivateNextHabit(): {
 
 ### Files to Modify (by step)
 
-| Step | File                                | Change Summary                                          |
-| ---- | ----------------------------------- | ------------------------------------------------------- |
-| 1    | `src/types/index.ts`                | Remove FoxState, add habit exports                      |
-| 3    | `src/store/appStore.ts`             | Remove fox state/actions, keep screentime + preferences |
-| 3    | `app/(tabs)/index.tsx`              | Remove fox references (rewritten in Step 12)            |
-| 3    | `app/(tabs)/progress.tsx`           | Remove fox references (rewritten in Step 13)            |
-| 3    | `app/_layout.tsx`                   | Remove fox init (fully reworked in Step 25)             |
-| 4    | `src/constants/colors.ts`           | Add habitColors, habitIcons                             |
-| 4    | `src/constants/themes.ts`           | Add habit color references                              |
-| 5    | `src/components/ui/index.ts`        | Export new components                                   |
-| 7    | `src/types/onboarding.ts`           | New OnboardingData shape                                |
-| 7    | `src/store/onboardingStore.ts`      | New store actions                                       |
-| 7    | `src/config/onboardingFlow.ts`      | New flow with habit screens                             |
-| 11   | `app/onboarding/app-selection.tsx`  | Change messaging                                        |
-| 11   | `app/onboarding/building-plan.tsx`  | New stacking timeline content                           |
-| 12   | `app/(tabs)/index.tsx`              | Rewrite as habit dashboard                              |
-| 13   | `app/(tabs)/progress.tsx`           | Rewrite with habit streaks                              |
-| 14   | `app/(tabs)/settings.tsx`           | Add habit management                                    |
-| 15   | `targets/ActivityMonitorExtension/` | Threshold event handling                                |
-| 20   | `package.json`                      | Add `adhan` dependency                                  |
-| 21   | `app.json`                          | HealthKit entitlements                                  |
-| 21   | `ios/Serenity/Info.plist`           | HealthKit usage description                             |
-| 22   | `targets/ShieldConfiguration/`      | Habit-context shield UI                                 |
-| 22   | `targets/ShieldAction/`             | Habit-aware deep links                                  |
-| 23   | `app/mindful-pause.tsx`             | Habit-aware messaging                                   |
-| 23   | `app/_layout.tsx`                   | New deep link routes                                    |
-| 24   | `src/store/habitStore.ts`           | Enhanced stacking logic                                 |
-| 25   | `app/_layout.tsx`                   | Full lifecycle rework                                   |
-| 26   | `src/services/posthog.ts`           | New events                                              |
-| 26   | `src/services/supabase.ts`          | Updated data shape                                      |
-| 27   | `PROJECT.md`                        | Complete rewrite                                        |
-| 27   | `app/(tabs)/_layout.tsx`            | Tab icons/labels                                        |
+| Step | File                                | Change Summary                                                  |
+| ---- | ----------------------------------- | --------------------------------------------------------------- |
+| 1    | `src/types/index.ts`                | Remove FoxState, add habit exports                              |
+| 3    | `src/store/appStore.ts`             | Remove fox state/actions, keep screentime + preferences         |
+| 3    | `app/(tabs)/index.tsx`              | Remove fox references (rewritten in Step 12)                    |
+| 3    | `app/(tabs)/progress.tsx`           | Remove fox references (rewritten in Step 13)                    |
+| 3    | `app/_layout.tsx`                   | Remove fox init (fully reworked in Step 25)                     |
+| 4    | `src/constants/colors.ts`           | Rebuild entire palette: dark-first, habitAccent, status signals |
+| 4    | `src/constants/themes.ts`           | Rebuild dark/light themes with new token structure              |
+| 4    | `src/constants/typography.ts`       | Replace Lora/Inter with SF Pro/SF Mono type scale               |
+| 4    | `src/constants/spacing.ts`          | 4px-base scale, tighter radii, neutral shadows                  |
+| 5    | `src/components/ui/index.ts`        | Export new components                                           |
+| 7    | `src/types/onboarding.ts`           | New OnboardingData shape                                        |
+| 7    | `src/store/onboardingStore.ts`      | New store actions                                               |
+| 7    | `src/config/onboardingFlow.ts`      | New flow with habit screens                                     |
+| 11   | `app/onboarding/app-selection.tsx`  | Change messaging                                                |
+| 11   | `app/onboarding/building-plan.tsx`  | New stacking timeline content                                   |
+| 12   | `app/(tabs)/index.tsx`              | Rewrite as habit dashboard                                      |
+| 13   | `app/(tabs)/progress.tsx`           | Rewrite with habit streaks                                      |
+| 14   | `app/(tabs)/settings.tsx`           | Add habit management                                            |
+| 15   | `targets/ActivityMonitorExtension/` | Threshold event handling                                        |
+| 20   | `package.json`                      | Add `adhan` dependency                                          |
+| 21   | `app.json`                          | HealthKit entitlements                                          |
+| 21   | `ios/Serenity/Info.plist`           | HealthKit usage description                                     |
+| 22   | `targets/ShieldConfiguration/`      | Habit-context shield UI                                         |
+| 22   | `targets/ShieldAction/`             | Habit-aware deep links                                          |
+| 23   | `app/mindful-pause.tsx`             | Habit-aware messaging                                           |
+| 23   | `app/_layout.tsx`                   | New deep link routes                                            |
+| 24   | `src/store/habitStore.ts`           | Enhanced stacking logic                                         |
+| 25   | `app/_layout.tsx`                   | Full lifecycle rework                                           |
+| 26   | `src/services/posthog.ts`           | New events                                                      |
+| 26   | `src/services/supabase.ts`          | Updated data shape                                              |
+| 27   | `PROJECT.md`                        | Complete rewrite                                                |
+| 27   | `app/(tabs)/_layout.tsx`            | Tab icons/labels                                                |
 
 ---
 

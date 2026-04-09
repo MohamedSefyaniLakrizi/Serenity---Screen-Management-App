@@ -8,54 +8,49 @@
  * 1. PostHog feature flag:  "onboarding-flow-variant"
  *    - Type: Multivariate (with JSON payload)
  *    - Payload: a JSON array of screen-name strings, e.g.:
- *        ["welcome","name-input","problem-selection","screentime-permission",
- *         "notification-permission","daily-goal","app-selection","building-plan"]
+ *        ["welcome","how-it-works","the-pact","habit-selection","habit-priority",
+ *         "config-screentime","app-selection","screentime-permission",
+ *         "notification-permission","building-plan"]
  *    - Any subset of the names in STEP_REGISTRY, in any order you want.
  * 2. `useRemoteOnboardingFlow()` reads the **payload** via
  *    `useFeatureFlagPayload()`. If the payload is a valid non-empty array of
  *    known step names it becomes the live flow.
  * 3. Fallback chain (most → least preferred):
  *    a) PostHog payload  → JSON array of step names (fully remote)
- *    b) PostHog flag value → legacy variant key string ("default" / "permissions-first")
+ *    b) PostHog flag value → legacy variant key string ("default")
  *    c) Hard-coded FLOW_VARIANTS.default  (used when PostHog is unavailable)
  *
  * ─── PostHog dashboard setup ────────────────────────────────────────────────
  * 1. Create a feature flag with key  "onboarding-flow-variant".
  * 2. Add variants. For each variant set the Payload to a JSON array of step
- *    names (see STEP_REGISTRY keys below for valid values), e.g.:
- *      Variant "control"  payload: null   → uses app default
- *      Variant "short"    payload: ["welcome","name-input","screentime-permission",
- *                                   "notification-permission","daily-goal",
- *                                   "app-selection","building-plan"]
- *      Variant "long"     payload: ["welcome","name-input","name-intro",
- *                                   "problem-selection","solution-preview",
- *                                   "stats-intro","pause-reflect",
- *                                   "mindful-sessions","screentime-permission",
- *                                   "notification-permission","phone-usage",
- *                                   "daily-goal","app-selection",
- *                                   "usage-patterns","building-plan"]
+ *    names (see STEP_REGISTRY keys below for valid values).
  * 3. Roll out to user segments as needed. The app picks up changes on the
  *    next cold start (PostHog caches flags locally between sessions).
  * ────────────────────────────────────────────────────────────────────────────
  */
 
+import { HabitType } from "@/types/habits";
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type OnboardingRoutePath =
   | "/onboarding"
-  | "/onboarding/name-input"
-  | "/onboarding/name-intro"
-  | "/onboarding/problem-selection"
-  | "/onboarding/solution-preview"
-  | "/onboarding/stats-intro"
-  | "/onboarding/pause-reflect"
-  | "/onboarding/mindful-sessions"
+  | "/onboarding/how-it-works"
+  | "/onboarding/the-pact"
+  | "/onboarding/habit-selection"
+  | "/onboarding/habit-priority"
+  | "/onboarding/config-screentime"
+  | "/onboarding/config-study"
+  | "/onboarding/config-fitness"
+  | "/onboarding/config-sleep"
+  | "/onboarding/config-prayer"
+  | "/onboarding/config-meditation"
+  | "/onboarding/config-reading"
+  | "/onboarding/app-selection"
   | "/onboarding/screentime-permission"
   | "/onboarding/notification-permission"
-  | "/onboarding/phone-usage"
-  | "/onboarding/daily-goal"
-  | "/onboarding/app-selection"
-  | "/onboarding/usage-patterns"
+  | "/onboarding/healthkit-permission"
+  | "/onboarding/pact-screen"
   | "/onboarding/building-plan";
 
 export interface OnboardingStep {
@@ -67,42 +62,75 @@ export interface OnboardingStep {
    * When this function returns true, the step is skipped (jumped over) during
    * forward and backward navigation. The condition is re-evaluated at runtime
    * so it always reflects the current store state.
-   *
-   * Example:
-   *   skipWhen: (ctx) => !ctx.screenTimePermissionGranted
    */
   skipWhen?: (ctx: OnboardingContext) => boolean;
 }
 
 /**
  * Slice of onboarding state that skip conditions can inspect.
- * Add more fields here as new conditional steps are introduced.
  */
 export interface OnboardingContext {
   screenTimePermissionGranted: boolean;
+  selectedHabits?: HabitType[];
 }
 
-export type FlowVariantKey = "default" | "permissions-first" | (string & {});
+export type FlowVariantKey = "default" | (string & {});
+
+// ── Helpers for skipWhen ──────────────────────────────────────────────────────
+
+function habitNotSelected(type: HabitType) {
+  return (ctx: OnboardingContext) => !ctx.selectedHabits?.includes(type);
+}
 
 // ── Variants ──────────────────────────────────────────────────────────────────
 
-/**
- * Add new variants here. Every key must list ALL steps you want in the flow.
- * Missing steps are simply not shown.
- */
 export const FLOW_VARIANTS: Record<FlowVariantKey, OnboardingStep[]> = {
   /**
-   * Default flow — current production order.
+   * Default flow — new habit-centric onboarding.
+   * Config screens for habits not selected by the user are auto-skipped.
    */
   default: [
     { route: "/onboarding", name: "welcome" },
-    { route: "/onboarding/name-input", name: "name-input" },
-    { route: "/onboarding/name-intro", name: "name-intro" },
-    { route: "/onboarding/problem-selection", name: "problem-selection" },
-    { route: "/onboarding/solution-preview", name: "solution-preview" },
-    { route: "/onboarding/stats-intro", name: "stats-intro" },
-    { route: "/onboarding/pause-reflect", name: "pause-reflect" },
-    { route: "/onboarding/mindful-sessions", name: "mindful-sessions" },
+    { route: "/onboarding/how-it-works", name: "how-it-works" },
+    { route: "/onboarding/the-pact", name: "the-pact" },
+    { route: "/onboarding/habit-selection", name: "habit-selection" },
+    { route: "/onboarding/habit-priority", name: "habit-priority" },
+    {
+      route: "/onboarding/config-screentime",
+      name: "config-screentime",
+      skipWhen: habitNotSelected("screentime"),
+    },
+    {
+      route: "/onboarding/config-study",
+      name: "config-study",
+      skipWhen: habitNotSelected("study"),
+    },
+    {
+      route: "/onboarding/config-fitness",
+      name: "config-fitness",
+      skipWhen: habitNotSelected("fitness"),
+    },
+    {
+      route: "/onboarding/config-sleep",
+      name: "config-sleep",
+      skipWhen: habitNotSelected("sleep"),
+    },
+    {
+      route: "/onboarding/config-prayer",
+      name: "config-prayer",
+      skipWhen: habitNotSelected("prayer"),
+    },
+    {
+      route: "/onboarding/config-meditation",
+      name: "config-meditation",
+      skipWhen: habitNotSelected("meditation"),
+    },
+    {
+      route: "/onboarding/config-reading",
+      name: "config-reading",
+      skipWhen: habitNotSelected("reading"),
+    },
+    { route: "/onboarding/app-selection", name: "app-selection" },
     {
       route: "/onboarding/screentime-permission",
       name: "screentime-permission",
@@ -111,38 +139,12 @@ export const FLOW_VARIANTS: Record<FlowVariantKey, OnboardingStep[]> = {
       route: "/onboarding/notification-permission",
       name: "notification-permission",
     },
-    { route: "/onboarding/phone-usage", name: "phone-usage" },
-    { route: "/onboarding/daily-goal", name: "daily-goal" },
-    { route: "/onboarding/app-selection", name: "app-selection" },
-    { route: "/onboarding/usage-patterns", name: "usage-patterns" },
-    { route: "/onboarding/building-plan", name: "building-plan" },
-  ],
-
-  /**
-   * Variant B — permissions asked up front, before the value-prop slides.
-   * Example only; enable via PostHog flag "onboarding-flow-variant" = "permissions-first".
-   */
-  "permissions-first": [
-    { route: "/onboarding", name: "welcome" },
-    { route: "/onboarding/name-input", name: "name-input" },
-    { route: "/onboarding/name-intro", name: "name-intro" },
     {
-      route: "/onboarding/screentime-permission",
-      name: "screentime-permission",
+      route: "/onboarding/healthkit-permission",
+      name: "healthkit-permission",
+      skipWhen: habitNotSelected("fitness"),
     },
-    {
-      route: "/onboarding/notification-permission",
-      name: "notification-permission",
-    },
-    { route: "/onboarding/problem-selection", name: "problem-selection" },
-    { route: "/onboarding/solution-preview", name: "solution-preview" },
-    { route: "/onboarding/stats-intro", name: "stats-intro" },
-    { route: "/onboarding/pause-reflect", name: "pause-reflect" },
-    { route: "/onboarding/mindful-sessions", name: "mindful-sessions" },
-    { route: "/onboarding/phone-usage", name: "phone-usage" },
-    { route: "/onboarding/daily-goal", name: "daily-goal" },
-    { route: "/onboarding/app-selection", name: "app-selection" },
-    { route: "/onboarding/usage-patterns", name: "usage-patterns" },
+    { route: "/onboarding/pact-screen", name: "pact-screen" },
     { route: "/onboarding/building-plan", name: "building-plan" },
   ],
 };
@@ -161,28 +163,57 @@ export const POSTHOG_FLAG = "onboarding-flow-variant";
 /**
  * Registry of every onboarding screen the app knows about.
  * Keys are the stable "step names" used in PostHog payloads.
- * Add new screens here as you build them.
  */
 export const STEP_REGISTRY: Record<string, OnboardingStep> = {
   welcome: { route: "/onboarding", name: "welcome" },
-  "name-input": { route: "/onboarding/name-input", name: "name-input" },
-  "name-intro": { route: "/onboarding/name-intro", name: "name-intro" },
-  "problem-selection": {
-    route: "/onboarding/problem-selection",
-    name: "problem-selection",
+  "how-it-works": { route: "/onboarding/how-it-works", name: "how-it-works" },
+  "the-pact": { route: "/onboarding/the-pact", name: "the-pact" },
+  "habit-selection": {
+    route: "/onboarding/habit-selection",
+    name: "habit-selection",
   },
-  "solution-preview": {
-    route: "/onboarding/solution-preview",
-    name: "solution-preview",
+  "habit-priority": {
+    route: "/onboarding/habit-priority",
+    name: "habit-priority",
   },
-  "stats-intro": { route: "/onboarding/stats-intro", name: "stats-intro" },
-  "pause-reflect": {
-    route: "/onboarding/pause-reflect",
-    name: "pause-reflect",
+  "config-screentime": {
+    route: "/onboarding/config-screentime",
+    name: "config-screentime",
+    skipWhen: habitNotSelected("screentime"),
   },
-  "mindful-sessions": {
-    route: "/onboarding/mindful-sessions",
-    name: "mindful-sessions",
+  "config-study": {
+    route: "/onboarding/config-study",
+    name: "config-study",
+    skipWhen: habitNotSelected("study"),
+  },
+  "config-fitness": {
+    route: "/onboarding/config-fitness",
+    name: "config-fitness",
+    skipWhen: habitNotSelected("fitness"),
+  },
+  "config-sleep": {
+    route: "/onboarding/config-sleep",
+    name: "config-sleep",
+    skipWhen: habitNotSelected("sleep"),
+  },
+  "config-prayer": {
+    route: "/onboarding/config-prayer",
+    name: "config-prayer",
+    skipWhen: habitNotSelected("prayer"),
+  },
+  "config-meditation": {
+    route: "/onboarding/config-meditation",
+    name: "config-meditation",
+    skipWhen: habitNotSelected("meditation"),
+  },
+  "config-reading": {
+    route: "/onboarding/config-reading",
+    name: "config-reading",
+    skipWhen: habitNotSelected("reading"),
+  },
+  "app-selection": {
+    route: "/onboarding/app-selection",
+    name: "app-selection",
   },
   "screentime-permission": {
     route: "/onboarding/screentime-permission",
@@ -192,16 +223,12 @@ export const STEP_REGISTRY: Record<string, OnboardingStep> = {
     route: "/onboarding/notification-permission",
     name: "notification-permission",
   },
-  "phone-usage": { route: "/onboarding/phone-usage", name: "phone-usage" },
-  "daily-goal": { route: "/onboarding/daily-goal", name: "daily-goal" },
-  "app-selection": {
-    route: "/onboarding/app-selection",
-    name: "app-selection",
+  "healthkit-permission": {
+    route: "/onboarding/healthkit-permission",
+    name: "healthkit-permission",
+    skipWhen: habitNotSelected("fitness"),
   },
-  "usage-patterns": {
-    route: "/onboarding/usage-patterns",
-    name: "usage-patterns",
-  },
+  "pact-screen": { route: "/onboarding/pact-screen", name: "pact-screen" },
   "building-plan": {
     route: "/onboarding/building-plan",
     name: "building-plan",
@@ -215,8 +242,8 @@ export const STEP_REGISTRY: Record<string, OnboardingStep> = {
  * Priority:
  * 1. Flag **payload** is a non-empty JSON array of valid step names
  *    → fully remote flow defined in the PostHog dashboard
- * 2. Flag **value** is a known variant key string ("default" | "permissions-first")
- *    → legacy A/B variant hard-coded in FLOW_VARIANTS
+ * 2. Flag **value** is a known variant key string ("default")
+ *    → legacy variant hard-coded in FLOW_VARIANTS
  * 3. FLOW_VARIANTS.default
  *    → used in development or when PostHog is unreachable
  *
@@ -255,11 +282,10 @@ export function useRemoteOnboardingFlow(): {
 
 /**
  * @deprecated Use `useRemoteOnboardingFlow()` instead.
- * Kept for gradual migration; returns the variant key for backward compat.
  */
 export const useFlowVariantFlag = (): FlowVariantKey | undefined => {
   const { variant } = useRemoteOnboardingFlow();
-  if (variant === "default") return undefined; // matches original "no flag" behaviour
+  if (variant === "default") return undefined;
   return variant as FlowVariantKey;
 };
 

@@ -1,170 +1,189 @@
-import { spacing, typography } from "@/constants";
-import { FONTS } from "@/constants/typography";
+import { borderRadius, spacing, typeScale } from "@/constants";
 import { useThemedColors } from "@/hooks/useThemedStyles";
 import { useOnboardingStore } from "@/store/onboardingStore";
+import { HabitType } from "@/types/habits";
 import { router } from "expo-router";
-import { Check, Sparkles } from "lucide-react-native";
-import React, { useEffect, useRef, useState } from "react";
-import { StatusBar, StyleSheet, Text, View } from "react-native";
+import {
+  BookOpen,
+  BookText,
+  Brain,
+  Dumbbell,
+  HandHeart,
+  Moon,
+  Smartphone,
+} from "lucide-react-native";
+import React, { useEffect, useRef } from "react";
+import { ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withSpring,
-    withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const STEPS: { label: string; sublabel: string }[] = [
+const REDIRECT_MS = 5000;
+
+const HABIT_META: Record<
+  HabitType,
   {
-    label: "Analyzing usage patterns",
-    sublabel: "Reviewing your daily habits",
-  },
-  {
-    label: "Calibrating blocker intensity",
-    sublabel: "Tuning limits to your goals",
-  },
-  { label: "Finalizing your schedule", sublabel: "Almost ready" },
-];
+    label: string;
+    Icon: React.ComponentType<{
+      size: number;
+      color: string;
+      strokeWidth: number;
+    }>;
+  }
+> = {
+  screentime: { label: "Screen Time", Icon: Smartphone },
+  study: { label: "Study / Work", Icon: BookOpen },
+  fitness: { label: "Fitness", Icon: Dumbbell },
+  sleep: { label: "Sleep", Icon: Moon },
+  prayer: { label: "Prayer", Icon: HandHeart },
+  meditation: { label: "Meditation", Icon: Brain },
+  reading: { label: "Reading", Icon: BookText },
+};
 
-const STEP_TIMINGS = [0, 1800, 3600]; // when each step becomes "active"
-const DONE_TIMINGS = [1600, 3400, 5200]; // when each step ticks "done"
-const REDIRECT_MS = 5800;
+// ─── Habit timeline card ──────────────────────────────────────────────────────
 
-// ─── Step card component ──────────────────────────────────────────────────────
-
-function StepCard({
-  label,
-  sublabel,
-  state,
+function HabitTimelineCard({
+  type,
+  index,
+  isFirst,
   theme,
-  delay,
+  startDate,
 }: {
-  label: string;
-  sublabel: string;
-  state: "pending" | "active" | "done";
+  type: HabitType;
+  index: number;
+  isFirst: boolean;
   theme: ReturnType<typeof useThemedColors>;
-  delay: number;
+  startDate: Date;
 }) {
+  const meta = HABIT_META[type];
+  const { Icon } = meta;
+  const accentColor = theme.habitAccent[type];
+
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(12);
-  const barWidth = useSharedValue(0);
 
-  // fade-in on mount
   useEffect(() => {
-    opacity.value = withDelay(delay, withTiming(1, { duration: 400 }));
+    opacity.value = withDelay(
+      200 + index * 150,
+      withTiming(1, { duration: 400 }),
+    );
     translateY.value = withDelay(
-      delay,
+      200 + index * 150,
       withSpring(0, { damping: 16, stiffness: 120 }),
     );
   }, []);
-
-  // bar fill when active
-  useEffect(() => {
-    if (state === "active") {
-      barWidth.value = withTiming(100, {
-        duration:
-          DONE_TIMINGS[STEPS.findIndex((s) => s.label === label)] -
-          STEP_TIMINGS[STEPS.findIndex((s) => s.label === label)] -
-          100,
-      });
-    }
-    if (state === "done") {
-      barWidth.value = withTiming(100, { duration: 200 });
-    }
-  }, [state]);
 
   const wrapStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 
+  // Estimated start: index * 60 days from the start date
+  const estimatedStart = new Date(startDate);
+  estimatedStart.setDate(estimatedStart.getDate() + index * 60);
+  const dateLabel = isFirst
+    ? "Starting now"
+    : estimatedStart.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+
+  const barWidth = useSharedValue(isFirst ? 0 : 0);
+  const barFillWidth = useSharedValue(0);
+
+  useEffect(() => {
+    if (isFirst) {
+      barFillWidth.value = withDelay(
+        600 + index * 150,
+        withTiming(40, { duration: 1200 }),
+      );
+    }
+  }, []);
+
   const barStyle = useAnimatedStyle(() => ({
-    width: `${barWidth.value}%` as any,
+    width: `${barFillWidth.value}%` as any,
   }));
 
-  const isDone = state === "done";
-  const isActive = state === "active";
+  const s = styles(theme);
 
   return (
     <Animated.View
-      style={[
-        styles(theme).card,
-        isDone && styles(theme).cardDone,
-        isActive && styles(theme).cardActive,
-        wrapStyle,
-      ]}
+      style={[s.habitCard, isFirst && s.habitCardFirst, wrapStyle]}
     >
-      <View style={styles(theme).cardLeft}>
-        <View
-          style={[
-            styles(theme).iconBox,
-            isDone && { backgroundColor: theme.primary },
-            isActive && { backgroundColor: theme.primaryLight + "33" },
-            !isDone && !isActive && { backgroundColor: theme.surfaceSecondary },
-          ]}
-        >
-          {isDone ? (
-            <Check size={13} color="#fff" strokeWidth={2.5} />
-          ) : (
-            <View
-              style={[
-                styles(theme).dot,
-                { backgroundColor: isActive ? theme.primary : theme.textMuted },
-              ]}
-            />
-          )}
-        </View>
-      </View>
-
-      <View style={styles(theme).cardBody}>
-        <Text
-          style={[
-            styles(theme).cardLabel,
-            {
-              color:
-                isDone || isActive ? theme.textPrimary : theme.textTertiary,
-            },
-          ]}
-        >
-          {label}
-        </Text>
-
-        <Text
-          style={[
-            styles(theme).cardSublabel,
-            { color: theme.textSecondary, opacity: isDone || isActive ? 1 : 0 },
-          ]}
-        >
-          {sublabel}
-        </Text>
-
-        <View
-          style={[
-            styles(theme).progressTrack,
-            { backgroundColor: theme.border, opacity: isActive ? 1 : 0 },
-          ]}
-        >
-          <Animated.View
-            style={[
-              styles(theme).progressFill,
-              { backgroundColor: theme.primary },
-              barStyle,
-            ]}
-          />
-        </View>
-      </View>
-
-      <Text
+      <View
         style={[
-          styles(theme).doneLabel,
-          { color: theme.primary, opacity: isDone ? 1 : 0 },
+          s.habitAccentBar,
+          { backgroundColor: isFirst ? accentColor : theme.border.subtle },
+        ]}
+      />
+      <View
+        style={[
+          s.habitIconBox,
+          { backgroundColor: `${accentColor}${isFirst ? "20" : "10"}` },
         ]}
       >
-        Done
-      </Text>
+        <Icon
+          size={16}
+          color={isFirst ? accentColor : theme.text.tertiary}
+          strokeWidth={1.5}
+        />
+      </View>
+      <View style={s.habitBody}>
+        <View style={s.habitRow}>
+          <Text
+            style={[
+              s.habitLabel,
+              { color: isFirst ? theme.text.primary : theme.text.tertiary },
+            ]}
+          >
+            {meta.label}
+          </Text>
+          <Text
+            style={[
+              s.habitDate,
+              {
+                color: isFirst ? theme.accent.primary : theme.text.tertiary,
+                fontVariant: ["tabular-nums"],
+              },
+            ]}
+          >
+            {dateLabel}
+          </Text>
+        </View>
+        {isFirst && (
+          <>
+            <Text style={[s.habitSubtitle, { color: theme.text.secondary }]}>
+              60 days to build this habit
+            </Text>
+            <View
+              style={[
+                s.progressTrack,
+                { backgroundColor: theme.border.default },
+              ]}
+            >
+              <Animated.View
+                style={[
+                  s.progressFill,
+                  { backgroundColor: accentColor },
+                  barStyle,
+                ]}
+              />
+            </View>
+          </>
+        )}
+        {!isFirst && (
+          <Text style={[s.habitSubtitle, { color: theme.text.tertiary }]}>
+            Coming up next
+          </Text>
+        )}
+      </View>
     </Animated.View>
   );
 }
@@ -173,12 +192,9 @@ function StepCard({
 
 export default function BuildingPlanScreen() {
   const theme = useThemedColors();
-  const { completeOnboarding } = useOnboardingStore();
-
-  // -1 = nothing started yet; 0/1/2 = that index is active; 3 = all done
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const [doneUpTo, setDoneUpTo] = useState(-1);
+  const { completeOnboarding, habitPriority } = useOnboardingStore();
   const mountedRef = useRef(true);
+  const today = new Date();
 
   const titleOpacity = useSharedValue(0);
   const titleTranslateY = useSharedValue(16);
@@ -198,15 +214,6 @@ export default function BuildingPlanScreen() {
 
   useEffect(() => {
     mountedRef.current = true;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    STEP_TIMINGS.forEach((t, i) => {
-      timers.push(setTimeout(() => mountedRef.current && setActiveIndex(i), t));
-    });
-    DONE_TIMINGS.forEach((t, i) => {
-      timers.push(setTimeout(() => mountedRef.current && setDoneUpTo(i), t));
-    });
-
     const redirect = setTimeout(async () => {
       try {
         await completeOnboarding();
@@ -217,63 +224,51 @@ export default function BuildingPlanScreen() {
       }
     }, REDIRECT_MS);
 
-    timers.push(redirect);
     return () => {
       mountedRef.current = false;
-      timers.forEach(clearTimeout);
+      clearTimeout(redirect);
     };
   }, []);
 
-  const getState = (i: number): "pending" | "active" | "done" => {
-    if (doneUpTo >= i) return "done";
-    if (activeIndex === i) return "active";
-    return "pending";
-  };
+  const s = styles(theme);
+
+  // Fallback if no habits were selected
+  const habits =
+    habitPriority.length > 0 ? habitPriority : (["screentime"] as HabitType[]);
 
   return (
-    <SafeAreaView style={styles(theme).container} edges={["top", "bottom"]}>
+    <SafeAreaView style={s.container} edges={["top", "bottom"]}>
       <StatusBar barStyle={theme.statusBar} />
 
-      <View style={styles(theme).inner}>
-        {/* Icon badge */}
-        <View
-          style={[
-            styles(theme).badge,
-            {
-              backgroundColor: theme.primaryLight + "22",
-              borderColor: theme.primaryLight + "55",
-            },
-          ]}
-        >
-          <Sparkles size={22} color={theme.primary} />
-        </View>
-
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Headline */}
-        <Animated.View style={titleStyle}>
-          <Text style={[styles(theme).title, { color: theme.textPrimary }]}>
-            Building your{"\n"}personal plan
+        <Animated.View style={[s.header, titleStyle]}>
+          <Text style={[s.title, { color: theme.text.primary }]}>
+            Your Habit Plan
           </Text>
-          <Text
-            style={[styles(theme).subtitle, { color: theme.textSecondary }]}
-          >
-            This only takes a moment
+          <Text style={[s.subtitle, { color: theme.text.secondary }]}>
+            One habit at a time. 60 days each. Stack as you go.
           </Text>
         </Animated.View>
 
-        {/* Steps */}
-        <View style={styles(theme).steps}>
-          {STEPS.map((step, i) => (
-            <StepCard
-              key={step.label}
-              label={step.label}
-              sublabel={step.sublabel}
-              state={getState(i)}
+        {/* Timeline */}
+        <View style={s.timeline}>
+          {habits.map((type, i) => (
+            <HabitTimelineCard
+              key={type}
+              type={type}
+              index={i}
+              isFirst={i === 0}
               theme={theme}
-              delay={200 + i * 120}
+              startDate={today}
             />
           ))}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -284,99 +279,99 @@ const styles = (theme: ReturnType<typeof useThemedColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: theme.bg.primary,
     },
-    inner: {
+    scroll: {
       flex: 1,
-      paddingHorizontal: spacing.lg,
-      justifyContent: "center",
-      gap: spacing.lg,
     },
-    badge: {
-      alignSelf: "flex-start",
-      width: 48,
-      height: 48,
-      borderRadius: 14,
-      borderWidth: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: spacing.xs,
+    scrollContent: {
+      paddingHorizontal: spacing[6],
+      paddingTop: spacing[12],
+      paddingBottom: spacing[10],
+    },
+    header: {
+      marginBottom: spacing[8],
     },
     title: {
-      fontFamily: FONTS.loraBold,
-      fontSize: typography.sizes.h1,
-      lineHeight: 36,
-      letterSpacing: -0.3,
+      fontFamily: "System",
+      fontSize: typeScale.title1.size,
+      fontWeight: typeScale.title1.weight,
+      lineHeight: typeScale.title1.lineHeight,
+      marginBottom: spacing[2],
     },
     subtitle: {
-      fontFamily: FONTS.interRegular,
-      fontSize: typography.sizes.body,
-      marginTop: 6,
+      fontFamily: "System",
+      fontSize: typeScale.callout.size,
+      fontWeight: typeScale.callout.weight,
+      lineHeight: typeScale.callout.lineHeight,
     },
-    steps: {
-      gap: spacing.sm,
+    timeline: {
+      gap: spacing[3],
     },
-    // ── Card
-    card: {
+    // ── Habit card ─────────────────────────────────
+    habitCard: {
       flexDirection: "row",
       alignItems: "flex-start",
-      gap: spacing.sm,
-      padding: spacing.md,
-      borderRadius: 14,
+      gap: spacing[3],
+      backgroundColor: theme.bg.elevated,
       borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
+      borderColor: theme.border.subtle,
+      borderRadius: borderRadius.lg,
+      padding: spacing[4],
+      opacity: 0.55,
     },
-    cardActive: {
-      borderColor: theme.primary + "55",
-      backgroundColor: theme.primaryLight + "0D",
+    habitCardFirst: {
+      borderColor: theme.border.default,
+      opacity: 1,
     },
-    cardDone: {
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
+    habitAccentBar: {
+      width: 3,
+      height: 40,
+      borderRadius: 2,
+      alignSelf: "center",
     },
-    cardLeft: {
-      paddingTop: 2,
-    },
-    iconBox: {
-      width: 26,
-      height: 26,
-      borderRadius: 8,
+    habitIconBox: {
+      width: 32,
+      height: 32,
+      borderRadius: borderRadius.sm,
       alignItems: "center",
       justifyContent: "center",
     },
-    dot: {
-      width: 7,
-      height: 7,
-      borderRadius: 3.5,
-    },
-    cardBody: {
+    habitBody: {
       flex: 1,
-      gap: 4,
+      gap: spacing[1],
     },
-    cardLabel: {
-      fontFamily: FONTS.interSemiBold,
-      fontSize: typography.sizes.body,
-      lineHeight: 20,
+    habitRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
-    cardSublabel: {
-      fontFamily: FONTS.interRegular,
-      fontSize: typography.sizes.caption,
-      lineHeight: 16,
+    habitLabel: {
+      fontFamily: "System",
+      fontSize: typeScale.callout.size,
+      fontWeight: "600",
+      lineHeight: typeScale.callout.lineHeight,
+    },
+    habitDate: {
+      fontFamily: "Menlo",
+      fontSize: typeScale.caption1.size,
+      fontWeight: typeScale.caption1.weight,
+      lineHeight: typeScale.caption1.lineHeight,
+    },
+    habitSubtitle: {
+      fontFamily: "System",
+      fontSize: typeScale.footnote.size,
+      fontWeight: typeScale.footnote.weight,
+      lineHeight: typeScale.footnote.lineHeight,
     },
     progressTrack: {
       height: 3,
       borderRadius: 2,
       overflow: "hidden",
-      marginTop: 6,
+      marginTop: spacing[2],
     },
     progressFill: {
       height: "100%",
       borderRadius: 2,
-    },
-    doneLabel: {
-      fontFamily: FONTS.interMedium,
-      fontSize: typography.sizes.caption,
-      alignSelf: "center",
     },
   });

@@ -1,11 +1,10 @@
-import { FONTS, spacing, typography } from "@/constants";
+import { borderRadius, spacing, typeScale } from "@/constants";
 import { useSequentialFadeIn } from "@/hooks/useOnboardingAnimation";
+import { useOnboardingNext } from "@/hooks/useOnboardingNext";
 import { useThemedColors } from "@/hooks/useThemedStyles";
-import { router } from "expo-router";
 import LottieView from "lottie-react-native";
 import React, { useRef } from "react";
 import {
-  Image,
   StatusBar,
   StyleSheet,
   Text,
@@ -18,66 +17,51 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function WelcomeScreen() {
   const theme = useThemedColors();
   const lottieRef = useRef<LottieView>(null);
+  const { navigateNext } = useOnboardingNext("/onboarding");
 
-  // Sequential fade-in animations for all elements
-  const [
-    screenFade,
-    mascotAnim,
-    headingAnim,
-    subtitleAnim,
-    descriptionAnim,
-    buttonAnim,
-  ] = useSequentialFadeIn(6, {
-    duration: 400,
-    stagger: 400,
-    initialDelay: 300,
-  });
+  const [logoAnim, titleAnim, subtitleAnim, buttonAnim] = useSequentialFadeIn(
+    4,
+    { duration: 400, stagger: 200, initialDelay: 300 },
+  );
+
+  const s = styles(theme);
 
   return (
-    <SafeAreaView style={styles(theme).container} edges={["top", "bottom"]}>
+    <SafeAreaView style={s.container} edges={["top", "bottom"]}>
       <StatusBar barStyle={theme.statusBar} />
 
-      <Animated.View style={[styles(theme).content, screenFade]}>
-        {/* Logo Animation */}
-        <Animated.View style={[mascotAnim]}>
+      <View style={s.content}>
+        {/* Logo */}
+        <Animated.View style={[s.logoWrapper, logoAnim]}>
           <LottieView
             ref={lottieRef}
             source={require("../../assets/videos/Logo-Animation.json")}
             autoPlay
             loop={false}
-            style={styles(theme).mascot}
-          />
-          <Image
-            source={require("../../assets/images/stones.png")}
-            style={styles(theme).stoneImage}
-            resizeMode="contain"
+            style={s.lottie}
           />
         </Animated.View>
 
-        {/* Text Content */}
-        <View style={styles(theme).textContent}>
-          <Animated.Text style={[styles(theme).heading, headingAnim]}>
-            Take Back Control
-          </Animated.Text>
+        {/* Title */}
+        <Animated.Text style={[s.title, titleAnim]}>
+          Build Habits That Stick
+        </Animated.Text>
 
-          <Animated.Text style={[styles(theme).subtitle, subtitleAnim]}>
-            I'm here to help you in your everyday life!
-          </Animated.Text>
+        {/* Subtitle */}
+        <Animated.Text style={[s.subtitle, subtitleAnim]}>
+          Serenity blocks your apps until you complete your daily habits. One
+          habit at a time. Two months to build it. Then stack the next.
+        </Animated.Text>
+      </View>
 
-          <Animated.Text style={[styles(theme).description, descriptionAnim]}>
-            Serenity awaits you
-          </Animated.Text>
-        </View>
-      </Animated.View>
-
-      {/* Button */}
-      <Animated.View style={[styles(theme).actions, buttonAnim]}>
+      {/* CTA */}
+      <Animated.View style={[s.actions, buttonAnim]}>
         <TouchableOpacity
-          style={styles(theme).button}
+          style={s.button}
           activeOpacity={0.8}
-          onPress={() => router.push("/onboarding/name-input")}
+          onPress={navigateNext}
         >
-          <Text style={styles(theme).buttonText}>Let's get started</Text>
+          <Text style={s.buttonText}>Get Started</Text>
         </TouchableOpacity>
       </Animated.View>
     </SafeAreaView>
@@ -88,71 +72,55 @@ const styles = (theme: ReturnType<typeof useThemedColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: theme.bg.primary,
     },
     content: {
       flex: 1,
       justifyContent: "center",
-      paddingHorizontal: spacing.xl,
+      paddingHorizontal: spacing[6],
       alignItems: "center",
     },
-    mascotContainer: {
+    logoWrapper: {
       alignItems: "center",
-      marginBottom: spacing.xxl,
+      marginBottom: spacing[8],
     },
-    mascot: {
-      width: 250,
-      height: 250,
-      alignItems: "center",
-    },
-    stoneImage: {
-      height: 200,
+    lottie: {
       width: 200,
-      marginTop: -spacing.lg,
-      marginBottom: spacing.lg,
-      alignSelf: "center",
+      height: 200,
     },
-    textContent: {
-      alignItems: "center",
-    },
-    heading: {
-      fontSize: typography.display,
-      fontFamily: FONTS.loraBold,
-      color: theme.textPrimary,
-      marginBottom: spacing.md,
-      lineHeight: 54,
+    title: {
+      fontFamily: "System",
+      fontSize: typeScale.display.size,
+      fontWeight: typeScale.display.weight,
+      lineHeight: typeScale.display.lineHeight,
+      color: theme.text.primary,
       textAlign: "center",
+      marginBottom: spacing[4],
     },
     subtitle: {
-      fontSize: typography.h3,
-      fontFamily: FONTS.interMedium,
-      color: theme.textSecondary,
+      fontFamily: "System",
+      fontSize: typeScale.callout.size,
+      fontWeight: typeScale.callout.weight,
+      lineHeight: typeScale.callout.lineHeight,
+      color: theme.text.secondary,
       textAlign: "center",
-      marginBottom: spacing.sm,
-      lineHeight: 26,
-    },
-    description: {
-      fontSize: typography.sizes.bodyLarge,
-      fontFamily: FONTS.interRegular,
-      color: theme.textSecondary,
-      textAlign: "center",
-      lineHeight: 24,
+      paddingHorizontal: spacing[4],
     },
     actions: {
-      paddingHorizontal: spacing.xl,
-      paddingBottom: spacing.xl,
+      paddingHorizontal: spacing[6],
+      paddingBottom: spacing[6],
     },
     button: {
-      backgroundColor: theme.primary,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xl,
-      borderRadius: 16,
+      backgroundColor: theme.accent.primary,
+      paddingVertical: spacing[4],
+      borderRadius: borderRadius.md,
       width: "100%",
       alignItems: "center",
     },
     buttonText: {
       color: "#FFFFFF",
-      fontSize: typography.h3,
-      fontFamily: FONTS.loraBold,
+      fontFamily: "System",
+      fontSize: typeScale.headline.size,
+      fontWeight: typeScale.headline.weight,
     },
   });

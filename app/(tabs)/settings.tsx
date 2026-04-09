@@ -1,94 +1,275 @@
-import { Button, Card, Input } from "@/components/ui";
-import { borderRadius, colors, spacing, typography } from "@/constants";
+import HabitConfigCard from "@/components/HabitConfigCard";
+import { habitAccent } from "@/constants/colors";
+import { borderRadius, spacing } from "@/constants/spacing";
+import { typeScale } from "@/constants/typography";
 import { useRevenueCat } from "@/hooks/useRevenueCat";
-import { useThemedColors } from "@/hooks/useThemedStyles";
-import { useAppStore } from "@/store/appStore";
+import { useThemedColors, useThemedStyles } from "@/hooks/useThemedStyles";
+import { useHabitStore } from "@/store/habitStore";
 import { useOnboardingStore } from "@/store/onboardingStore";
 import { usePurchasesStore } from "@/store/purchasesStore";
 import { useThemeStore } from "@/store/themeStore";
+import type { Habit, HabitConfig, HabitType } from "@/types/habits";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import {
-    Bell,
+    BookOpen,
+    BookText,
+    Brain,
+    ChevronDown,
     ChevronRight,
+    ChevronUp,
     Crown,
+    Dumbbell,
     FlaskConical,
-    Info,
+    Hand,
     Moon,
+    Plus,
     Settings2,
     Shield,
     Smartphone,
     Sun,
-    User,
+    X,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
     Alert,
+    Modal,
     ScrollView,
+    StatusBar,
     StyleSheet,
-    Switch,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+import {
+    AuthorizationStatus,
+    DeviceActivitySelectionView,
+    getAuthorizationStatus,
+} from "react-native-device-activity";
 import Purchases from "react-native-purchases";
 import RevenueCatUI from "react-native-purchases-ui";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+// ─── Habit meta ──────────────────────────────────────────────────────────────
+
+const HABIT_LABELS: Record<HabitType, string> = {
+  screentime: "Screen Time",
+  study: "Study",
+  fitness: "Fitness",
+  sleep: "Sleep",
+  prayer: "Prayer",
+  meditation: "Meditation",
+  reading: "Reading",
+};
+
+const ALL_HABIT_TYPES: HabitType[] = [
+  "screentime",
+  "study",
+  "fitness",
+  "sleep",
+  "prayer",
+  "meditation",
+  "reading",
+];
+
+function HabitIcon({
+  type,
+  size = 18,
+  color,
+}: {
+  type: HabitType;
+  size?: number;
+  color: string;
+}) {
+  const props = { size, color };
+  switch (type) {
+    case "screentime":
+      return <Smartphone {...props} />;
+    case "study":
+      return <BookOpen {...props} />;
+    case "fitness":
+      return <Dumbbell {...props} />;
+    case "sleep":
+      return <Moon {...props} />;
+    case "prayer":
+      return <Hand {...props} />;
+    case "meditation":
+      return <Brain {...props} />;
+    case "reading":
+      return <BookText {...props} />;
+  }
+}
+
+function defaultHabitConfig(type: HabitType): HabitConfig {
+  switch (type) {
+    case "screentime":
+      return { type: "screentime", dailyLimitMinutes: 120 };
+    case "study":
+      return { type: "study", dailyGoalMinutes: 60 };
+    case "fitness":
+      return { type: "fitness", goalType: "steps", goalValue: 10000 };
+    case "sleep":
+      return { type: "sleep", bedtime: "22:00", wakeTime: "06:00" };
+    case "prayer":
+      return { type: "prayer", religion: "islam", prayerCount: 5 };
+    case "meditation":
+      return { type: "meditation", dailyGoalMinutes: 15 };
+    case "reading":
+      return { type: "reading", dailyGoalMinutes: 30 };
+  }
+}
 
 export default function SettingsScreen() {
-  const { userPreferences, setUserPreferences, loadFromStorage } =
-    useAppStore();
+  const theme = useThemedColors();
+  const { isDark } = useThemedStyles();
   const { themeMode, setThemeMode } = useThemeStore();
   const { resetOnboarding } = useOnboardingStore();
-  const themedColors = useThemedColors();
+  const { isPro, showPaywall, restore, isPurchasing } = useRevenueCat();
 
-  // RevenueCat
-  const { isPro, customerInfo, showPaywall, restore, isPurchasing } =
-    useRevenueCat();
+  const {
+    habits,
+    isInitialized,
+    loadFromStorage,
+    getActiveHabits,
+    getPendingHabits,
+    updateHabitConfig,
+    addHabit,
+    removeHabit,
+    reorderHabits,
+    setBlockedApps,
+    blockedAppsCount,
+    blockedAppsSelection,
+  } = useHabitStore();
 
-  const [dailyLimit, setDailyLimit] = useState("");
-  const [notifications, setNotifications] = useState(true);
-  const [reminderFrequency, setReminderFrequency] = useState("");
+  // Edit habit modal state
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [editingConfig, setEditingConfig] = useState<HabitConfig | null>(null);
 
-  useEffect(() => {
-    loadFromStorage();
-  }, []);
+  // Add habit modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedNewType, setSelectedNewType] = useState<HabitType | null>(
+    null,
+  );
+  const [newHabitConfig, setNewHabitConfig] = useState<HabitConfig | null>(
+    null,
+  );
 
-  useEffect(() => {
-    if (userPreferences) {
-      setDailyLimit((userPreferences.dailyLimit || 120).toString());
-      setNotifications(userPreferences.notificationsEnabled);
-      setReminderFrequency(
-        (userPreferences.reminderFrequency || 30).toString(),
-      );
-    }
-  }, [userPreferences]);
+  // Blocked apps modal state
+  const [showBlockedAppsModal, setShowBlockedAppsModal] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState<string | null>(null);
+  const [pendingAppsCount, setPendingAppsCount] = useState(0);
+  const [pendingCategoriesCount, setPendingCategoriesCount] = useState(0);
 
-  const saveSettings = () => {
-    const limitNum = parseInt(dailyLimit);
-    const freqNum = parseInt(reminderFrequency);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isInitialized) loadFromStorage();
+    }, [isInitialized, loadFromStorage]),
+  );
 
-    if (isNaN(limitNum) || limitNum <= 0) {
-      Alert.alert("Invalid Input", "Please enter a valid daily limit");
-      return;
-    }
+  const activeHabits = getActiveHabits();
+  const pendingHabits = getPendingHabits();
+  const existingTypes = new Set(habits.map((h) => h.type));
+  const availableTypes = ALL_HABIT_TYPES.filter((t) => !existingTypes.has(t));
 
-    if (isNaN(freqNum) || freqNum <= 0) {
-      Alert.alert("Invalid Input", "Please enter a valid reminder frequency");
-      return;
-    }
+  // ── Edit handlers ─────────────────────────────────────────────────────────────
 
-    setUserPreferences({
-      dailyLimit: limitNum,
-      notificationsEnabled: notifications,
-      reminderFrequency: freqNum,
-    });
-
-    Alert.alert("Success", "Settings saved successfully!");
+  const handleOpenEdit = (habit: Habit) => {
+    setEditingHabit(habit);
+    setEditingConfig(habit.config);
   };
 
-  // -------------------------------------------------------------------------
-  // RevenueCat handlers
-  // -------------------------------------------------------------------------
+  const handleSaveEdit = () => {
+    if (!editingHabit || !editingConfig) return;
+    updateHabitConfig(editingHabit.id, editingConfig);
+    setEditingHabit(null);
+    setEditingConfig(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingHabit(null);
+    setEditingConfig(null);
+  };
+
+  // ── Remove handler ───────────────────────────────────────────────────────────────
+
+  const handleRemoveHabit = (id: string, name: string) => {
+    Alert.alert("Remove Habit", `Remove ${name}? This will clear its streak.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => removeHabit(id) },
+    ]);
+  };
+
+  // ── Reorder handlers ───────────────────────────────────────────────────────────────
+
+  const handleMoveUp = (index: number) => {
+    if (index === 0) return;
+    const ordered = [...pendingHabits];
+    [ordered[index - 1], ordered[index]] = [ordered[index], ordered[index - 1]];
+    reorderHabits([
+      ...activeHabits.map((h) => h.id),
+      ...ordered.map((h) => h.id),
+    ]);
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index === pendingHabits.length - 1) return;
+    const ordered = [...pendingHabits];
+    [ordered[index], ordered[index + 1]] = [ordered[index + 1], ordered[index]];
+    reorderHabits([
+      ...activeHabits.map((h) => h.id),
+      ...ordered.map((h) => h.id),
+    ]);
+  };
+
+  // ── Add habit handlers ───────────────────────────────────────────────────────────
+
+  const handleSelectNewType = (type: HabitType) => {
+    setSelectedNewType(type);
+    setNewHabitConfig(defaultHabitConfig(type));
+  };
+
+  const handleAddHabit = () => {
+    if (!selectedNewType || !newHabitConfig) return;
+    addHabit(selectedNewType, newHabitConfig, habits.length);
+    setShowAddModal(false);
+    setSelectedNewType(null);
+    setNewHabitConfig(null);
+  };
+
+  const handleCancelAdd = () => {
+    setShowAddModal(false);
+    setSelectedNewType(null);
+    setNewHabitConfig(null);
+  };
+
+  // ── Blocked apps handlers ──────────────────────────────────────────────────────────
+
+  const handleOpenBlockedApps = () => {
+    const status = getAuthorizationStatus();
+    if (status !== AuthorizationStatus.approved) {
+      Alert.alert(
+        "Permission Required",
+        "Enable Screen Time permission in Settings → Screen Time → Serenity.",
+      );
+      return;
+    }
+    setPendingSelection(blockedAppsSelection);
+    setPendingAppsCount(blockedAppsCount.apps);
+    setPendingCategoriesCount(blockedAppsCount.categories);
+    setShowBlockedAppsModal(true);
+  };
+
+  const handleSaveBlockedApps = () => {
+    if (pendingSelection !== null) {
+      setBlockedApps(pendingSelection, {
+        apps: pendingAppsCount,
+        categories: pendingCategoriesCount,
+      });
+    }
+    setShowBlockedAppsModal(false);
+  };
+
+  // ── RevenueCat handlers ──────────────────────────────────────────────────────────────
 
   const handleUpgrade = async () => {
     await showPaywall();
@@ -98,10 +279,10 @@ export default function SettingsScreen() {
     try {
       await RevenueCatUI.presentCustomerCenter({
         callbacks: {
-          onRestoreCompleted: ({ customerInfo }) => {
+          onRestoreCompleted: ({ customerInfo: info }) => {
             console.log(
               "[CustomerCenter] Restore completed:",
-              customerInfo.entitlements.active,
+              info.entitlements.active,
             );
           },
           onRestoreFailed: ({ error }) => {
@@ -145,7 +326,7 @@ export default function SettingsScreen() {
   const handleRemovePremium = async () => {
     Alert.alert(
       "Remove Premium (Dev)",
-      "This will invalidate the local RevenueCat cache and force the app into non-premium mode. Useful for testing paywalls.",
+      "Invalidates the local RevenueCat cache and forces free mode.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -157,7 +338,7 @@ export default function SettingsScreen() {
               usePurchasesStore.setState({ isPro: false, customerInfo: null });
               Alert.alert(
                 "Done",
-                "Premium removed for this session. Restart or re-fetch to sync with RevenueCat.",
+                "Premium removed for this session. Restart to sync.",
               );
             } catch (err) {
               console.error("[Dev] removePremium error:", err);
@@ -188,11 +369,10 @@ export default function SettingsScreen() {
                 "streakData",
                 "@app_groups",
                 "@theme_mode",
+                "@habits",
               ]);
-              // Use the store's reset method — emits ONBOARDING_RESET event
-              // which causes _layout.tsx to navigate to onboarding automatically
               resetOnboarding();
-            } catch (error) {
+            } catch {
               Alert.alert("Error", "Failed to reset app");
             }
           },
@@ -201,262 +381,370 @@ export default function SettingsScreen() {
     );
   };
 
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours === 0) return `${mins} minutes`;
-    return `${hours} hour${hours > 1 ? "s" : ""} ${mins > 0 ? `${mins} min` : ""}`;
-  };
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: themedColors.background }]}
+    <SafeAreaView
+      style={[styles.root, { backgroundColor: theme.bg.primary }]}
+      edges={["top"]}
     >
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: themedColors.textPrimary }]}>
-            Settings
-          </Text>
-          <Text
-            style={[styles.subtitle, { color: themedColors.textSecondary }]}
-          >
-            Manage your preferences
-          </Text>
-        </View>
+      <StatusBar barStyle={theme.statusBar} />
 
-        {/* Upgrade Banner for free users */}
-        {!isPro && (
-          <TouchableOpacity
-            onPress={handleUpgrade}
-            style={styles.upgradeBanner}
-            activeOpacity={0.8}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <Text style={[styles.pageTitle, { color: theme.text.primary }]}>
+          Settings
+        </Text>
+
+        {/* ── Active Habits ──────────────────────────────────────────────── */}
+        <Text style={[styles.sectionHeader, { color: theme.text.secondary }]}>
+          Active Habits
+        </Text>
+
+        {activeHabits.length === 0 ? (
+          <View
+            style={[
+              styles.emptyCard,
+              {
+                backgroundColor: theme.bg.elevated,
+                borderColor: theme.border.default,
+              },
+            ]}
           >
-            <View style={styles.upgradeBannerContent}>
-              <Crown size={20} color="#fff" />
-              <View style={styles.upgradeBannerText}>
-                <Text style={styles.upgradeBannerTitle}>Upgrade to Serenity Pro</Text>
-                <Text style={styles.upgradeBannerSubtitle}>Unlimited groups, flexible blocking & more</Text>
+            <Text style={[styles.emptyText, { color: theme.text.tertiary }]}>
+              No active habits yet
+            </Text>
+          </View>
+        ) : (
+          activeHabits.map((habit) => (
+            <View
+              key={habit.id}
+              style={[
+                styles.habitCard,
+                {
+                  backgroundColor: theme.bg.elevated,
+                  borderColor: theme.border.subtle,
+                },
+              ]}
+            >
+              <View style={styles.habitRow}>
+                <View
+                  style={[
+                    styles.habitIconWrap,
+                    { backgroundColor: habitAccent[habit.type] + "1A" },
+                  ]}
+                >
+                  <HabitIcon
+                    type={habit.type}
+                    color={habitAccent[habit.type]}
+                  />
+                </View>
+                <View style={styles.habitInfo}>
+                  <Text
+                    style={[styles.habitName, { color: theme.text.primary }]}
+                  >
+                    {HABIT_LABELS[habit.type]}
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: theme.status.successSubtle },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusBadgeText,
+                        { color: theme.status.success },
+                      ]}
+                    >
+                      Active
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleOpenEdit(habit)}
+                  style={[
+                    styles.editBtn,
+                    { borderColor: theme.border.default },
+                  ]}
+                  accessibilityLabel={`Edit ${HABIT_LABELS[habit.type]}`}
+                >
+                  <Text
+                    style={[
+                      styles.editBtnText,
+                      { color: theme.text.secondary },
+                    ]}
+                  >
+                    Edit
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
             </View>
+          ))
+        )}
+
+        {/* ── Pending Habits ─────────────────────────────────────────────── */}
+        {pendingHabits.length > 0 && (
+          <>
+            <Text
+              style={[styles.sectionHeader, { color: theme.text.secondary }]}
+            >
+              Up Next
+            </Text>
+            {pendingHabits.map((habit, index) => (
+              <View
+                key={habit.id}
+                style={[
+                  styles.habitCard,
+                  {
+                    backgroundColor: theme.bg.elevated,
+                    borderColor: theme.border.subtle,
+                  },
+                ]}
+              >
+                <View style={styles.habitRow}>
+                  <View
+                    style={[
+                      styles.habitIconWrap,
+                      { backgroundColor: habitAccent[habit.type] + "1A" },
+                    ]}
+                  >
+                    <HabitIcon
+                      type={habit.type}
+                      color={habitAccent[habit.type]}
+                    />
+                  </View>
+                  <View style={styles.habitInfo}>
+                    <Text
+                      style={[styles.habitName, { color: theme.text.primary }]}
+                    >
+                      {HABIT_LABELS[habit.type]}
+                    </Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: theme.bg.subtle },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          { color: theme.text.tertiary },
+                        ]}
+                      >
+                        #{index + 1} in queue
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.reorderBtns}>
+                    <TouchableOpacity
+                      onPress={() => handleMoveUp(index)}
+                      disabled={index === 0}
+                      style={[
+                        styles.reorderBtn,
+                        {
+                          borderColor: theme.border.default,
+                          opacity: index === 0 ? 0.3 : 1,
+                        },
+                      ]}
+                      accessibilityLabel="Move up"
+                    >
+                      <ChevronUp size={16} color={theme.text.secondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleMoveDown(index)}
+                      disabled={index === pendingHabits.length - 1}
+                      style={[
+                        styles.reorderBtn,
+                        {
+                          borderColor: theme.border.default,
+                          opacity: index === pendingHabits.length - 1 ? 0.3 : 1,
+                        },
+                      ]}
+                      accessibilityLabel="Move down"
+                    >
+                      <ChevronDown size={16} color={theme.text.secondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleRemoveHabit(habit.id, HABIT_LABELS[habit.type])
+                      }
+                      style={[
+                        styles.reorderBtn,
+                        {
+                          borderColor: theme.status.errorSubtle,
+                          backgroundColor: theme.status.errorSubtle,
+                        },
+                      ]}
+                      accessibilityLabel={`Remove ${HABIT_LABELS[habit.type]}`}
+                    >
+                      <X size={16} color={theme.status.error} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
+
+        {/* ── Add Habit button ───────────────────────────────────────────── */}
+        {availableTypes.length > 0 && (
+          <TouchableOpacity
+            style={[styles.addHabitBtn, { borderColor: theme.border.default }]}
+            onPress={() => setShowAddModal(true)}
+            accessibilityLabel="Add a habit"
+          >
+            <Plus size={18} color={theme.text.secondary} />
+            <Text
+              style={[styles.addHabitText, { color: theme.text.secondary }]}
+            >
+              Add Habit
+            </Text>
           </TouchableOpacity>
         )}
 
-        {/* Theme Selection */}
-        <Card style={styles.section}>
-          <Text
-            style={[styles.sectionTitle, { color: themedColors.textPrimary }]}
+        {/* ── Blocked Apps ───────────────────────────────────────────────── */}
+        <Text style={[styles.sectionHeader, { color: theme.text.secondary }]}>
+          Blocked Apps
+        </Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.bg.elevated,
+              borderColor: theme.border.subtle,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.cardRow}
+            onPress={handleOpenBlockedApps}
+            accessibilityLabel="Manage blocked apps"
           >
-            Appearance
-          </Text>
-          <Text
-            style={[
-              styles.sectionDescription,
-              { color: themedColors.textSecondary },
-            ]}
-          >
-            Choose your preferred theme
-          </Text>
-          <View style={styles.themeOptions}>
-            <TouchableOpacity
-              style={[
-                styles.themeOption,
-                { borderColor: themedColors.border },
-                themeMode === "light" && {
-                  borderColor: themedColors.primary,
-                  borderWidth: 2,
-                },
-              ]}
-              onPress={() => setThemeMode("light")}
-            >
-              <Sun
-                size={24}
-                color={
-                  themeMode === "light"
-                    ? themedColors.primary
-                    : themedColors.textSecondary
-                }
-              />
-              <Text
+            <Shield size={20} color={theme.text.secondary} />
+            <Text style={[styles.cardRowLabel, { color: theme.text.primary }]}>
+              Manage Blocked Apps
+            </Text>
+            <ChevronRight size={18} color={theme.text.tertiary} />
+          </TouchableOpacity>
+          {(blockedAppsCount.apps > 0 || blockedAppsCount.categories > 0) && (
+            <>
+              <View
                 style={[
-                  styles.themeOptionText,
-                  {
-                    color:
-                      themeMode === "light"
-                        ? themedColors.primary
-                        : themedColors.textSecondary,
-                  },
+                  styles.cardDivider,
+                  { backgroundColor: theme.border.subtle },
                 ]}
-              >
-                Light
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.themeOption,
-                { borderColor: themedColors.border },
-                themeMode === "dark" && {
-                  borderColor: themedColors.primary,
-                  borderWidth: 2,
-                },
-              ]}
-              onPress={() => setThemeMode("dark")}
-            >
-              <Moon
-                size={24}
-                color={
-                  themeMode === "dark"
-                    ? themedColors.primary
-                    : themedColors.textSecondary
-                }
               />
-              <Text
-                style={[
-                  styles.themeOptionText,
-                  {
-                    color:
-                      themeMode === "dark"
-                        ? themedColors.primary
-                        : themedColors.textSecondary,
-                  },
-                ]}
-              >
-                Dark
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.themeOption,
-                { borderColor: themedColors.border },
-                themeMode === "system" && {
-                  borderColor: themedColors.primary,
-                  borderWidth: 2,
-                },
-              ]}
-              onPress={() => setThemeMode("system")}
-            >
-              <Smartphone
-                size={24}
-                color={
-                  themeMode === "system"
-                    ? themedColors.primary
-                    : themedColors.textSecondary
-                }
-              />
-              <Text
-                style={[
-                  styles.themeOptionText,
-                  {
-                    color:
-                      themeMode === "system"
-                        ? themedColors.primary
-                        : themedColors.textSecondary,
-                  },
-                ]}
-              >
-                System
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
-
-        {/* Daily Limit */}
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Daily Screen Time Goal</Text>
-          <Text style={styles.sectionDescription}>
-            Set your daily screen time limit in minutes
-          </Text>
-          <Input
-            value={dailyLimit}
-            onChangeText={setDailyLimit}
-            keyboardType="numeric"
-            placeholder="120"
-            style={styles.input}
-          />
-          <Text style={styles.helperText}>
-            Current: {formatTime(parseInt(dailyLimit) || 120)}
-          </Text>
-        </Card>
-
-        {/* Notifications */}
-        <Card style={styles.section}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Bell size={24} color={colors.primary} />
-              <View style={styles.settingText}>
-                <Text style={styles.settingTitle}>Notifications</Text>
-                <Text style={styles.settingDescription}>
-                  Get reminders and updates
+              <View style={[styles.cardRow, { paddingVertical: spacing[3] }]}>
+                <Text
+                  style={[
+                    styles.blockCountText,
+                    { color: theme.text.secondary },
+                  ]}
+                >
+                  {blockedAppsCount.apps} apps · {blockedAppsCount.categories}{" "}
+                  categories blocked
                 </Text>
               </View>
-            </View>
-            <Switch
-              value={notifications}
-              onValueChange={setNotifications}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.white}
-            />
+            </>
+          )}
+        </View>
+
+        {/* ── Appearance ─────────────────────────────────────────────────── */}
+        <Text style={[styles.sectionHeader, { color: theme.text.secondary }]}>
+          Appearance
+        </Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.bg.elevated,
+              borderColor: theme.border.subtle,
+            },
+          ]}
+        >
+          <View style={styles.themeOptions}>
+            {(
+              [
+                { mode: "light" as const, label: "Light", Icon: Sun },
+                { mode: "dark" as const, label: "Dark", Icon: Moon },
+                {
+                  mode: "system" as const,
+                  label: "System",
+                  Icon: Smartphone,
+                },
+              ] as const
+            ).map(({ mode, label, Icon }) => {
+              const active = themeMode === mode;
+              return (
+                <TouchableOpacity
+                  key={mode}
+                  style={[
+                    styles.themeOption,
+                    {
+                      borderColor: active
+                        ? theme.accent.primary
+                        : theme.border.default,
+                      borderWidth: active ? 2 : 1,
+                    },
+                  ]}
+                  onPress={() => setThemeMode(mode)}
+                  accessibilityLabel={`${label} theme`}
+                >
+                  <Icon
+                    size={20}
+                    color={active ? theme.accent.primary : theme.text.secondary}
+                  />
+                  <Text
+                    style={[
+                      styles.themeOptionLabel,
+                      {
+                        color: active
+                          ? theme.accent.primary
+                          : theme.text.secondary,
+                      },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </Card>
+        </View>
 
-        {/* Reminder Frequency */}
-        {notifications && (
-          <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Reminder Frequency</Text>
-            <Text style={styles.sectionDescription}>
-              How often to remind you (in minutes)
-            </Text>
-            <Input
-              value={reminderFrequency}
-              onChangeText={setReminderFrequency}
-              keyboardType="numeric"
-              placeholder="30"
-              style={styles.input}
-            />
-            <Text style={styles.helperText}>
-              Current: Every {reminderFrequency || 30} minutes
-            </Text>
-          </Card>
-        )}
-
-        {/* Goal Selection */}
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Goal</Text>
-          <Text style={styles.settingDescription}>
-            Current goal:{" "}
-            {userPreferences?.goal?.replace("-", " ").toUpperCase() ||
-              "Not set"}
-          </Text>
-          <Text style={styles.helperText}>
-            To change your goal, reset the app and go through onboarding again
-          </Text>
-        </Card>
-
-        {/* ------------------------------------------------------------------ */}
-        {/* Serenity Pro / Subscription                                         */}
-        {/* ------------------------------------------------------------------ */}
-        <Card style={{ ...styles.section, ...styles.proCard }}>
-          {/* Status row */}
+        {/* ── Subscription ───────────────────────────────────────────────── */}
+        <Text style={[styles.sectionHeader, { color: theme.text.secondary }]}>
+          Subscription
+        </Text>
+        <View
+          style={[
+            styles.card,
+            styles.proCard,
+            {
+              backgroundColor: theme.bg.elevated,
+              borderColor: isPro
+                ? "rgba(245, 166, 35, 0.4)"
+                : theme.border.subtle,
+            },
+          ]}
+        >
           <View style={styles.proHeader}>
-            <Crown
-              size={22}
-              color={isPro ? "#F5A623" : themedColors.textSecondary}
-            />
+            <Crown size={22} color={isPro ? "#F5A623" : theme.text.secondary} />
             <View style={styles.proHeaderText}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: themedColors.textPrimary, marginBottom: 0 },
-                ]}
-              >
+              <Text style={[styles.proTitle, { color: theme.text.primary }]}>
                 Serenity Pro
               </Text>
               <Text
                 style={[
-                  styles.settingDescription,
-                  { color: isPro ? "#4CAF50" : themedColors.textSecondary },
+                  styles.proStatus,
+                  {
+                    color: isPro ? theme.status.success : theme.text.tertiary,
+                  },
                 ]}
               >
                 {isPro ? "✓ Active" : "Free plan"}
@@ -467,21 +755,18 @@ export default function SettingsScreen() {
           {!isPro && (
             <>
               <Text
-                style={[
-                  styles.sectionDescription,
-                  { color: themedColors.textSecondary, marginTop: spacing.sm },
-                ]}
+                style={[styles.proDescription, { color: theme.text.secondary }]}
               >
-                Unlock unlimited app groups, advanced analytics, and more.
+                Unlock habit stacking, advanced analytics, and more.
               </Text>
               <TouchableOpacity
-                style={styles.upgradeButton}
+                style={[styles.upgradeBtn, { opacity: isPurchasing ? 0.7 : 1 }]}
                 onPress={handleUpgrade}
                 disabled={isPurchasing}
                 accessibilityLabel="Upgrade to Serenity Pro"
               >
                 <Crown size={16} color="#fff" />
-                <Text style={styles.upgradeButtonText}>
+                <Text style={styles.upgradeBtnText}>
                   {isPurchasing ? "Processing…" : "Upgrade to Pro"}
                 </Text>
               </TouchableOpacity>
@@ -490,403 +775,669 @@ export default function SettingsScreen() {
 
           {isPro && (
             <TouchableOpacity
-              style={styles.linkItem}
+              style={[styles.cardRow, { marginTop: spacing[2] }]}
               onPress={handleManageSubscription}
               accessibilityLabel="Manage subscription"
             >
-              <Settings2 size={20} color={themedColors.textSecondary} />
+              <Settings2 size={20} color={theme.text.secondary} />
               <Text
-                style={[styles.linkText, { color: themedColors.textPrimary }]}
+                style={[styles.cardRowLabel, { color: theme.text.primary }]}
               >
                 Manage Subscription
               </Text>
-              <ChevronRight size={20} color={themedColors.textSecondary} />
+              <ChevronRight size={18} color={theme.text.tertiary} />
             </TouchableOpacity>
           )}
 
-          {/* Restore is always available */}
           <TouchableOpacity
-            style={[styles.linkItem, { marginTop: spacing.xs }]}
+            style={[styles.cardRow, { marginTop: spacing[1] }]}
             onPress={handleRestorePurchases}
             disabled={isPurchasing}
             accessibilityLabel="Restore purchases"
           >
-            <Shield size={20} color={themedColors.textSecondary} />
-            <Text
-              style={[styles.linkText, { color: themedColors.textPrimary }]}
-            >
+            <Shield size={20} color={theme.text.secondary} />
+            <Text style={[styles.cardRowLabel, { color: theme.text.primary }]}>
               Restore Purchases
             </Text>
-            <ChevronRight size={20} color={themedColors.textSecondary} />
-          </TouchableOpacity>
-        </Card>
-
-        {/* Quick Links */}
-        <View style={styles.linksSection}>
-          <TouchableOpacity style={styles.linkItem}>
-            <User size={20} color={colors.textSecondary} />
-            <Text style={styles.linkText}>Account Information</Text>
-            <ChevronRight size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.linkItem}>
-            <Shield size={20} color={colors.textSecondary} />
-            <Text style={styles.linkText}>Privacy & Security</Text>
-            <ChevronRight size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.linkItem}>
-            <Info size={20} color={colors.textSecondary} />
-            <Text style={styles.linkText}>About Serenity</Text>
-            <ChevronRight size={20} color={colors.textSecondary} />
+            <ChevronRight size={18} color={theme.text.tertiary} />
           </TouchableOpacity>
         </View>
 
-        {/* Save Button */}
-        <Button
-          title="Save Changes"
-          onPress={saveSettings}
-          style={styles.saveButton}
-        />
-
-        {/* ------------------------------------------------------------------ */}
-        {/* DEV: Mindful Pause Testing                                           */}
-        {/* ------------------------------------------------------------------ */}
+        {/* ── Dev Tools ──────────────────────────────────────────────────── */}
         {__DEV__ && (
-          <Card style={StyleSheet.flatten([styles.section, styles.devCard])}>
-            <View style={styles.devHeader}>
-              <FlaskConical size={18} color="#9B59B6" />
-              <Text style={[styles.sectionTitle, styles.devTitle]}>
-                Dev: Shield Screen Testing
-              </Text>
-            </View>
+          <>
             <Text
-              style={[styles.sectionDescription, { marginBottom: spacing.md }]}
+              style={[styles.sectionHeader, { color: theme.text.secondary }]}
             >
-              Directly open the Mindful Pause screen in each mode without
-              needing a real blocked app.
+              Developer
             </Text>
-
-            {/* Limited app row */}
-            <TouchableOpacity
-              style={styles.devRow}
-              onPress={() =>
-                router.push("/mindful-pause?groupId=__dev_limited__")
-              }
-              accessibilityLabel="Test limited app shield"
+            <View
+              style={[
+                styles.card,
+                styles.devCard,
+                { backgroundColor: theme.bg.elevated },
+              ]}
             >
-              <View style={[styles.devDot, { backgroundColor: "#27AE60" }]} />
-              <View style={styles.devRowText}>
-                <Text style={styles.devRowTitle}>Limited app (hold 5 s)</Text>
-                <Text style={styles.devRowDesc}>
-                  Social Media group — 2 unlocks remaining today
-                </Text>
+              <View style={styles.devCardHeader}>
+                <FlaskConical size={16} color="#9B59B6" />
+                <Text style={styles.devCardTitle}>Dev Tools</Text>
               </View>
-              <ChevronRight size={18} color="#9B59B6" />
+              <TouchableOpacity
+                style={styles.devRow}
+                onPress={() => {
+                  const { router: r } = require("expo-router");
+                  r.push("/mindful-pause");
+                }}
+                accessibilityLabel="Test mindful pause screen"
+              >
+                <View style={[styles.devDot, { backgroundColor: "#27AE60" }]} />
+                <Text
+                  style={[styles.devRowLabel, { color: theme.text.primary }]}
+                >
+                  Test Mindful Pause
+                </Text>
+                <ChevronRight size={16} color="#9B59B6" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.outlineBtn, { borderColor: theme.border.default }]}
+              onPress={handleResetOnboarding}
+              accessibilityLabel="Reset to onboarding"
+            >
+              <Text
+                style={[styles.outlineBtnText, { color: theme.text.secondary }]}
+              >
+                Reset to Onboarding
+              </Text>
             </TouchableOpacity>
 
-            <View style={styles.devDivider} />
-
-            {/* Blocked app row */}
             <TouchableOpacity
-              style={styles.devRow}
-              onPress={() =>
-                router.push("/mindful-pause?groupId=__dev_blocked__")
-              }
-              accessibilityLabel="Test blocked app shield"
+              style={[
+                styles.outlineBtn,
+                {
+                  borderColor: theme.status.errorSubtle,
+                  marginTop: spacing[2],
+                },
+              ]}
+              onPress={handleRemovePremium}
+              accessibilityLabel="Remove premium (dev)"
             >
-              <View style={[styles.devDot, { backgroundColor: "#E74C3C" }]} />
-              <View style={styles.devRowText}>
-                <Text style={styles.devRowTitle}>Blocked app (close only)</Text>
-                <Text style={styles.devRowDesc}>
-                  Games group — permanently blocked
-                </Text>
-              </View>
-              <ChevronRight size={18} color="#9B59B6" />
+              <Text
+                style={[styles.outlineBtnText, { color: theme.status.error }]}
+              >
+                Remove Premium (Dev)
+              </Text>
             </TouchableOpacity>
-
-            {/* Zero-unlocks edge case */}
-            <View style={styles.devDivider} />
-            <TouchableOpacity
-              style={styles.devRow}
-              onPress={() =>
-                router.push("/mindful-pause?groupId=__dev_no_unlocks__")
-              }
-              accessibilityLabel="Test no unlocks remaining"
-            >
-              <View style={[styles.devDot, { backgroundColor: "#F39C12" }]} />
-              <View style={styles.devRowText}>
-                <Text style={styles.devRowTitle}>No unlocks left</Text>
-                <Text style={styles.devRowDesc}>
-                  Limited group at 0 remaining — same blocked UI + random quote
-                </Text>
-              </View>
-              <ChevronRight size={18} color="#9B59B6" />
-            </TouchableOpacity>
-          </Card>
+          </>
         )}
 
-        {/* Reset Button — dev builds only */}
-        {__DEV__ && (
-          <Button
-            title="Reset to Onboarding"
-            variant="outline"
-            onPress={handleResetOnboarding}
-            style={styles.resetButton}
+        <Text style={[styles.version, { color: theme.text.tertiary }]}>
+          Version 1.0.0
+        </Text>
+      </ScrollView>
+
+      {/* ── Edit Habit Modal ──────────────────────────────────────────────── */}
+      <Modal
+        visible={editingHabit !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCancelEdit}
+      >
+        <SafeAreaView
+          style={[styles.modalRoot, { backgroundColor: theme.bg.surface }]}
+          edges={["top", "bottom"]}
+        >
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: theme.border.subtle },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={handleCancelEdit}
+              accessibilityLabel="Cancel editing"
+            >
+              <Text
+                style={[styles.modalAction, { color: theme.text.secondary }]}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: theme.text.primary }]}>
+              {editingHabit ? HABIT_LABELS[editingHabit.type] : ""}
+            </Text>
+            <TouchableOpacity
+              onPress={handleSaveEdit}
+              accessibilityLabel="Save changes"
+            >
+              <Text
+                style={[
+                  styles.modalAction,
+                  styles.modalActionPrimary,
+                  { color: theme.accent.primary },
+                ]}
+              >
+                Save
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            {editingHabit && editingConfig && (
+              <HabitConfigCard
+                habitType={editingHabit.type}
+                config={editingConfig}
+                onConfigChange={setEditingConfig}
+              />
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Add Habit Modal ───────────────────────────────────────────────── */}
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCancelAdd}
+      >
+        <SafeAreaView
+          style={[styles.modalRoot, { backgroundColor: theme.bg.surface }]}
+          edges={["top", "bottom"]}
+        >
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: theme.border.subtle },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={handleCancelAdd}
+              accessibilityLabel="Cancel"
+            >
+              <Text
+                style={[styles.modalAction, { color: theme.text.secondary }]}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: theme.text.primary }]}>
+              Add Habit
+            </Text>
+            <TouchableOpacity
+              onPress={handleAddHabit}
+              disabled={!selectedNewType}
+              accessibilityLabel="Add selected habit"
+            >
+              <Text
+                style={[
+                  styles.modalAction,
+                  styles.modalActionPrimary,
+                  {
+                    color: selectedNewType
+                      ? theme.accent.primary
+                      : theme.text.disabled,
+                  },
+                ]}
+              >
+                Add
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text
+              style={[
+                styles.modalSectionLabel,
+                { color: theme.text.secondary },
+              ]}
+            >
+              Choose a habit to add to your queue:
+            </Text>
+            {availableTypes.map((type) => {
+              const selected = selectedNewType === type;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.habitCard,
+                    {
+                      backgroundColor: selected
+                        ? habitAccent[type] + "1A"
+                        : theme.bg.elevated,
+                      borderColor: selected
+                        ? habitAccent[type]
+                        : theme.border.subtle,
+                      borderWidth: selected ? 2 : 1,
+                      marginBottom: spacing[2],
+                    },
+                  ]}
+                  onPress={() => handleSelectNewType(type)}
+                  accessibilityLabel={`Select ${HABIT_LABELS[type]}`}
+                >
+                  <View style={styles.habitRow}>
+                    <View
+                      style={[
+                        styles.habitIconWrap,
+                        { backgroundColor: habitAccent[type] + "1A" },
+                      ]}
+                    >
+                      <HabitIcon type={type} color={habitAccent[type]} />
+                    </View>
+                    <Text
+                      style={[styles.habitName, { color: theme.text.primary }]}
+                    >
+                      {HABIT_LABELS[type]}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            {selectedNewType && newHabitConfig && (
+              <>
+                <Text
+                  style={[
+                    styles.modalSectionLabel,
+                    { color: theme.text.secondary, marginTop: spacing[5] },
+                  ]}
+                >
+                  Configure:
+                </Text>
+                <HabitConfigCard
+                  habitType={selectedNewType}
+                  config={newHabitConfig}
+                  onConfigChange={setNewHabitConfig}
+                />
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Blocked Apps Modal ────────────────────────────────────────────── */}
+      <Modal
+        visible={showBlockedAppsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowBlockedAppsModal(false)}
+      >
+        <SafeAreaView
+          style={[styles.modalRoot, { backgroundColor: theme.bg.surface }]}
+          edges={["top", "bottom"]}
+        >
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: theme.border.subtle },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => setShowBlockedAppsModal(false)}
+              accessibilityLabel="Cancel"
+            >
+              <Text
+                style={[styles.modalAction, { color: theme.text.secondary }]}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: theme.text.primary }]}>
+              Blocked Apps
+            </Text>
+            <TouchableOpacity
+              onPress={handleSaveBlockedApps}
+              accessibilityLabel="Save app selection"
+            >
+              <Text
+                style={[
+                  styles.modalAction,
+                  styles.modalActionPrimary,
+                  { color: theme.accent.primary },
+                ]}
+              >
+                Done
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <DeviceActivitySelectionView
+            style={{ flex: 1 }}
+            onSelectionChange={(event: any) => {
+              const {
+                familyActivitySelection: token,
+                applicationCount: apps,
+                categoryCount: cats,
+              } = event?.nativeEvent ?? {};
+              setPendingSelection(token ?? null);
+              setPendingAppsCount(apps ?? 0);
+              setPendingCategoriesCount(cats ?? 0);
+            }}
+            familyActivitySelection={
+              pendingSelection ?? blockedAppsSelection ?? undefined
+            }
+            headerText="Select apps to block"
+            footerText="Your selection is private and stays on-device."
+            appearance={isDark ? "dark" : "light"}
           />
-        )}
-
-        {/* Remove Premium — dev builds only */}
-        {__DEV__ && (
-          <Button
-            title="Remove Premium (Dev)"
-            variant="outline"
-            onPress={handleRemovePremium}
-            style={StyleSheet.flatten([
-              styles.resetButton,
-              { borderColor: "#E74C3C", marginTop: 0 },
-            ])}
-          />
-        )}
-
-        <Text style={styles.version}>Version 1.0.0</Text>
-      </View>
-    </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-    paddingTop: 60,
-    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[12],
   },
-  header: {
-    marginBottom: spacing.xl,
+  pageTitle: {
+    fontSize: typeScale.title1.size,
+    fontWeight: typeScale.title1.weight,
+    lineHeight: typeScale.title1.lineHeight,
+    marginBottom: spacing[6],
   },
-  upgradeBanner: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  upgradeBannerContent: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: spacing.sm,
-  },
-  upgradeBannerText: {
-    flex: 1,
-  },
-  upgradeBannerTitle: {
-    fontSize: 15,
-    fontWeight: typography.semibold,
-    color: "#fff",
-    marginBottom: 2,
-  },
-  upgradeBannerSubtitle: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.8)",
-  },
-  title: {
-    fontSize: typography.h1,
-    fontWeight: typography.bold,
-    color: colors.textDark,
-    marginBottom: spacing.xs / 2,
-  },
-  subtitle: {
-    fontSize: typography.body,
-    color: colors.textGray,
+  sectionHeader: {
+    fontSize: typeScale.title3.size,
+    fontWeight: typeScale.title3.weight,
+    lineHeight: typeScale.title3.lineHeight,
+    marginTop: spacing[5],
+    marginBottom: spacing[3],
   },
 
-  // Sections
-  section: {
-    marginBottom: spacing.md,
+  // ── Card ─────────────────────────────────────────────────────────────────
+  card: {
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: spacing[2],
   },
-  sectionTitle: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
-    color: colors.textDark,
-    marginBottom: spacing.xs,
-  },
-  sectionDescription: {
-    fontSize: typography.small,
-    color: colors.textGray,
-    marginBottom: spacing.md,
-  },
-  helperText: {
-    fontSize: typography.small,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-    fontStyle: "italic",
-  },
-  input: {
-    marginBottom: spacing.xs,
-  },
-
-  // Setting Row
-  settingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  settingInfo: {
+  cardRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: spacing[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    minHeight: 48,
+  },
+  cardRowLabel: {
+    fontSize: typeScale.body.size,
+    lineHeight: typeScale.body.lineHeight,
     flex: 1,
   },
-  settingText: {
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
-    color: colors.textDark,
-    marginBottom: spacing.xxs,
-  },
-  settingDescription: {
-    fontSize: typography.small,
-    color: colors.textGray,
+  cardDivider: {
+    height: 1,
+    marginHorizontal: spacing[4],
   },
 
-  // Theme Options
+  // ── Empty state ───────────────────────────────────────────────────────────
+  emptyCard: {
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    paddingVertical: spacing[5],
+    alignItems: "center",
+    marginBottom: spacing[2],
+  },
+  emptyText: {
+    fontSize: typeScale.subheadline.size,
+    lineHeight: typeScale.subheadline.lineHeight,
+  },
+
+  // ── Habit cards ───────────────────────────────────────────────────────────
+  habitCard: {
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing[2],
+    overflow: "hidden",
+  },
+  habitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    minHeight: 48,
+  },
+  habitIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  habitInfo: {
+    flex: 1,
+    gap: spacing[1],
+  },
+  habitName: {
+    fontSize: typeScale.body.size,
+    fontWeight: "500",
+    lineHeight: typeScale.body.lineHeight,
+  },
+  statusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: spacing[2],
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  statusBadgeText: {
+    fontSize: typeScale.caption1.size,
+    fontWeight: "600",
+    lineHeight: typeScale.caption1.lineHeight,
+  },
+
+  // ── Edit button ───────────────────────────────────────────────────────────
+  editBtn: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
+  editBtnText: {
+    fontSize: typeScale.footnote.size,
+    fontWeight: "500",
+    lineHeight: typeScale.footnote.lineHeight,
+  },
+
+  // ── Reorder buttons ───────────────────────────────────────────────────────
+  reorderBtns: {
+    flexDirection: "row",
+    gap: spacing[1],
+  },
+  reorderBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // ── Add habit button ──────────────────────────────────────────────────────
+  addHabitBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing[2],
+    paddingVertical: spacing[3],
+    borderRadius: borderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth * 3,
+    borderStyle: "dashed",
+    marginBottom: spacing[2],
+    marginTop: spacing[1],
+  },
+  addHabitText: {
+    fontSize: typeScale.subheadline.size,
+    fontWeight: "500",
+    lineHeight: typeScale.subheadline.lineHeight,
+  },
+
+  // ── Block count ───────────────────────────────────────────────────────────
+  blockCountText: {
+    fontSize: typeScale.callout.size,
+    lineHeight: typeScale.callout.lineHeight,
+    fontFamily: "Menlo",
+    flex: 1,
+  },
+
+  // ── Appearance ────────────────────────────────────────────────────────────
   themeOptions: {
     flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
+    gap: spacing[2],
+    padding: spacing[4],
   },
   themeOption: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.medium,
+    paddingVertical: spacing[4],
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.xs,
+    gap: spacing[1],
   },
-  themeOptionText: {
-    fontSize: typography.small,
-    fontWeight: typography.medium,
-  },
-
-  // Links
-  linksSection: {
-    marginBottom: spacing.xl,
-  },
-  linkItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.medium,
-    marginBottom: spacing.xs,
-  },
-  linkText: {
-    flex: 1,
-    fontSize: typography.body,
-    color: colors.textDark,
-    fontWeight: typography.medium,
+  themeOptionLabel: {
+    fontSize: typeScale.footnote.size,
+    fontWeight: "500",
+    lineHeight: typeScale.footnote.lineHeight,
   },
 
-  // Buttons
-  saveButton: {
-    marginBottom: spacing.md,
-  },
-  resetButton: {
-    marginBottom: spacing.lg,
-  },
-
-  // Serenity Pro card
+  // ── Subscription ──────────────────────────────────────────────────────────
   proCard: {
-    borderWidth: 1,
-    borderColor: "rgba(245, 166, 35, 0.3)",
+    padding: spacing[4],
   },
   proHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.xs,
+    gap: spacing[3],
+    marginBottom: spacing[1],
   },
   proHeaderText: {
     flex: 1,
     gap: 2,
   },
-  upgradeButton: {
+  proTitle: {
+    fontSize: typeScale.body.size,
+    fontWeight: "600",
+    lineHeight: typeScale.body.lineHeight,
+  },
+  proStatus: {
+    fontSize: typeScale.footnote.size,
+    lineHeight: typeScale.footnote.lineHeight,
+  },
+  proDescription: {
+    fontSize: typeScale.footnote.size,
+    lineHeight: typeScale.footnote.lineHeight,
+    marginTop: spacing[2],
+    marginBottom: spacing[2],
+  },
+  upgradeBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
+    gap: spacing[2],
     backgroundColor: "#F5A623",
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.medium,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    paddingVertical: spacing[3],
+    borderRadius: borderRadius.md,
+    marginTop: spacing[2],
+    marginBottom: spacing[1],
   },
-  upgradeButtonText: {
+  upgradeBtnText: {
+    fontSize: typeScale.body.size,
+    fontWeight: "600",
+    lineHeight: typeScale.body.lineHeight,
     color: "#fff",
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
   },
 
-  // Dev testing card
+  // ── Dev tools ─────────────────────────────────────────────────────────────
   devCard: {
-    borderWidth: 1,
     borderColor: "rgba(155, 89, 182, 0.35)",
-    backgroundColor: "rgba(155, 89, 182, 0.04)",
+    padding: spacing[4],
   },
-  devHeader: {
+  devCardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
+    gap: spacing[2],
+    marginBottom: spacing[3],
   },
-  devTitle: {
+  devCardTitle: {
+    fontSize: typeScale.subheadline.size,
+    fontWeight: "600",
+    lineHeight: typeScale.subheadline.lineHeight,
     color: "#9B59B6",
-    marginBottom: 0,
   },
   devRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
+    gap: spacing[3],
+    paddingVertical: spacing[2],
   },
   devDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
   },
-  devRowText: {
+  devRowLabel: {
+    fontSize: typeScale.subheadline.size,
+    lineHeight: typeScale.subheadline.lineHeight,
     flex: 1,
   },
-  devRowTitle: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
-    color: colors.textDark,
+
+  // ── Outline buttons ───────────────────────────────────────────────────────
+  outlineBtn: {
+    alignItems: "center",
+    paddingVertical: spacing[3],
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing[2],
   },
-  devRowDesc: {
-    fontSize: typography.small,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  devDivider: {
-    height: 1,
-    backgroundColor: "rgba(155, 89, 182, 0.15)",
-    marginVertical: 2,
+  outlineBtnText: {
+    fontSize: typeScale.subheadline.size,
+    fontWeight: "500",
+    lineHeight: typeScale.subheadline.lineHeight,
   },
 
-  // Version
+  // ── Version ───────────────────────────────────────────────────────────────
   version: {
-    fontSize: typography.small,
-    color: colors.textSecondary,
+    fontSize: typeScale.caption1.size,
+    lineHeight: typeScale.caption1.lineHeight,
     textAlign: "center",
-    marginTop: spacing.md,
+    marginTop: spacing[4],
+  },
+
+  // ── Modals ────────────────────────────────────────────────────────────────
+  modalRoot: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[4],
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: typeScale.headline.size,
+    fontWeight: typeScale.headline.weight,
+    lineHeight: typeScale.headline.lineHeight,
+  },
+  modalAction: {
+    fontSize: typeScale.body.size,
+    lineHeight: typeScale.body.lineHeight,
+  },
+  modalActionPrimary: {
+    fontWeight: "600",
+  },
+  modalContent: {
+    padding: spacing[4],
+    paddingBottom: spacing[8],
+  },
+  modalSectionLabel: {
+    fontSize: typeScale.subheadline.size,
+    lineHeight: typeScale.subheadline.lineHeight,
+    marginBottom: spacing[3],
   },
 });
