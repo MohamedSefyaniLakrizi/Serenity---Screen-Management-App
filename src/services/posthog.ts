@@ -12,34 +12,34 @@
  * ────────────────────────────────────────────────────────────────────────────
  */
 
-import { POSTHOG_FLAG } from '@/config/onboardingFlow';
+import { POSTHOG_FLAG } from "@/config/onboardingFlow";
 
 // ── Re-export provider so only one import is needed in _layout.tsx ───────────
-export { PostHogProvider } from 'posthog-react-native';
+export { PostHogProvider } from "posthog-react-native";
 
 // ── Typed event catalogue ────────────────────────────────────────────────────
 
 export type OnboardingEventName =
-  | 'onboarding_screen_view'
-  | 'onboarding_step_completed'
-  | 'onboarding_step_back'
-  | 'onboarding_completed'
-  | 'onboarding_abandoned';
+  | "onboarding_screen_view"
+  | "onboarding_step_completed"
+  | "onboarding_step_back"
+  | "onboarding_completed"
+  | "onboarding_abandoned";
 
 // ── Habit event names ────────────────────────────────────────────────────────
 
 export type HabitEventName =
-  | 'habit_completed'
-  | 'habit_stacked'
-  | 'habit_activated'
-  | 'streak_milestone'
-  | 'timer_started'
-  | 'timer_completed'
-  | 'oath_confirmed'
-  | 'prayer_confirmed'
-  | 'blocking_triggered'
-  | 'apps_unlocked'
-  | 'pact_accepted';
+  | "habit_completed"
+  | "habit_stacked"
+  | "habit_activated"
+  | "streak_milestone"
+  | "timer_started"
+  | "timer_completed"
+  | "oath_confirmed"
+  | "prayer_confirmed"
+  | "blocking_triggered"
+  | "apps_unlocked"
+  | "pact_accepted";
 
 export type EventName = OnboardingEventName | HabitEventName;
 
@@ -119,10 +119,10 @@ export interface OnboardingStepCompletedProps {
 // ── Config ───────────────────────────────────────────────────────────────────
 
 export const POSTHOG_CONFIG = {
-  apiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? '',
-  host: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com',
+  apiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? "",
+  host: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
   /** Disable in development so local sessions don't pollute dashboards. */
-  disabled: __DEV__ && process.env.EXPO_PUBLIC_POSTHOG_DEV !== 'true',
+  disabled: __DEV__ && process.env.EXPO_PUBLIC_POSTHOG_DEV !== "true",
   /** Feature flag used for A/B testing the onboarding flow order. */
   onboardingFlowFlag: POSTHOG_FLAG,
 } as const;

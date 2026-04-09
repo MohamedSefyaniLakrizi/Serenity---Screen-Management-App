@@ -11,10 +11,10 @@
  *    reset logic internally via AppState / the midnight timer.
  */
 
+import { useHabitStore } from "@/store/habitStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
-import { useHabitStore } from "@/store/habitStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
